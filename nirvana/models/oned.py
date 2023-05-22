@@ -800,6 +800,50 @@ class ConcentratedRotationCurve(Func1D):
 
         return f*self.par[3]*dxhdr/(1+xh) + f*dwdr/w
 
+class PseudoIsothermalSphere(Func1D):
+    r"""
+    Instantiates the rotation curve for a spherical pseudoisothermal sphere with
+    a density distribution following
+
+    .. math::
+
+        \rho (R) = \frac{\rho_0}{1 + \mathcal{R}^2}
+
+    to yield the rotation curve
+
+    .. math::
+
+        V (R) = V_{\rm flat} \left[1 -
+        \frac{arctan(\mathcal{R})}{\mathcal{R}}\right]^{-1}
+
+    where
+
+    .. math::
+
+        V_{\rm flat} = 2 R_c\ \sqrt{\pi G \rho_0}
+
+    is the asymptotic rotation speed as :math:`R\to\infty` and
+    :math:`\mathcal{R} = R / R_c` is the radius normalized by the core radius of
+    the density profile.
+
+    The two model parameters (in order) are (1) :math:`V_{\rm flat}` and (2) :math:`R_c`.
+
+    Args:
+        par (array-like, optional):
+            The two model parameters. If None, set by
+            :func:`guess_par`.
+        lb (array-like, optional):
+            Lower bounds for the model parameters. If None, set by
+            :func:`par_bounds`.
+        ub (:obj:`float`, optional):
+            Upper bounds for the model parameters. If None, set by
+            :func:`par_bounds`.
+    """
+#    def __init__(self, par=None, lb=None, ub=None):
+
+
+
+
 
 class Exponential(Func1D):
     """
