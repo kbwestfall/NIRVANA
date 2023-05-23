@@ -301,11 +301,13 @@ class Bin2D:
         Args:
             norm (`numpy.ndarray`_):
                 Gaussian normalization.  Shape must match :attr:`spatial_shape`.
+                Can be None.
             center (`numpy.ndarray`_):
-                Gaussian center.  Shape must match :attr:`spatial_shape`.
+                Gaussian center.  Shape must match :attr:`spatial_shape`.  Can
+                be None.
             stddev (`numpy.ndarray`_, optional):
                 Gaussian standard deviation.  Shape must match
-                :attr:`spatial_shape`.
+                :attr:`spatial_shape`.  Can be None.
 
         Returns:
             :obj:`tuple`: A tuple of three `numpy.ndarray`_ objects with the
