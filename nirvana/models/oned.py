@@ -333,7 +333,7 @@ class PiecewiseLinear(Func1D):
         i2 = self._sort(_x.flat, check)
         indx = (i2 > 0) & (i2 < self.np)
         f[indx] = lin_interp(_x.flat[indx], self.edges[i2[indx]-1], self.par[i2[indx]-1],
-                                      self.edges[i2[indx]], self.par[i2[indx]])
+                             self.edges[i2[indx]], self.par[i2[indx]])
         f[i2 == self.np] = self.par[-1]
         return f.reshape(_x.shape)
 
