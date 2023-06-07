@@ -704,16 +704,20 @@ def bin_stats(x, y, bin_center, bin_width, ye=None, wgts=None, gpm=None, eps=Non
              ntot, nbin, all_bin_gpm
 
 
-def select_major_axis(r, th, r_range=None, wedge=30.):
+def select_kinematic_axis(r, th, which='major', r_range=None, wedge=30.):
     r"""
-    Return a boolean array that selects data near the major axis.
+    Return a boolean array that selects data within a defined angular wedget
+    about a kinematic axis.
 
     Args:
         r (`numpy.ndarray`_):
             In-plane disk radius relative to the center.
         th (`numpy.ndarray`_):
             In-plane disk azimuth in *radians* relative to the receding side
-            of the major axis.
+            of the major axis.  Expected range is :math:`[0,2\pi)`
+        which (:obj:`str`, optional):
+            The axis about which to select data.  Must be either ``'major'`` or
+            ``'minor'``.
         r_range (:obj:`str`, array-like, optional):
             The lower and upper limit of the radial range over which to
             measure the median rotation velocity. If None, the radial range
@@ -730,8 +734,14 @@ def select_major_axis(r, th, r_range=None, wedge=30.):
     """
     # Select the spaxels within the wedge around the major axis
     _wedge = np.radians(wedge)
-    gpm = (th < _wedge) | (th > 2*np.pi - _wedge) \
-            | ((th > np.pi - _wedge) & (th < np.pi + _wedge))
+    if which == 'major':
+        gpm = (th < _wedge) | (th > 2*np.pi - _wedge) \
+                | ((th > np.pi - _wedge) & (th < np.pi + _wedge))
+    elif which == 'minor':
+        gpm = ((th > np.pi/2 - _wedge) & (th < np.pi/2 + _wedge)) \
+                | ((th > 3*np.pi/2 - _wedge) & (th < 3*np.pi/2 + _wedge))
+    else:
+        raise ValueError('Selected kinematic axis must be major or minor.')
 
     if r_range == 'all':
         # Do not select based on radius

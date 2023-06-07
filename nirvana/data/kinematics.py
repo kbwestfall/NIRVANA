@@ -16,7 +16,7 @@ from matplotlib import pyplot, rc, patches, ticker, colors
 import warnings
 
 from .bin2d import Bin2D
-from .util import gaussian_deviates, growth_lim
+from .util import gaussian_deviates, growth_lim, select_kinematic_axis, bin_stats
 from ..util import plot
 from ..models import asymmetry
 from ..models.beam import construct_beam, ConvolveFFTW, smear
@@ -1336,5 +1336,131 @@ class Kinematics:
         # Reset to default style
         pyplot.rcdefaults()
 
+    # TODO: Get the radial profile of the surface brightness, as well?
+    def radial_profiles(self, rstep, xc=0., yc=0., pa=0., inc=0., vsys=0., maj_wedge=30.,
+                        min_wedge=10., vel_mod=None, sig_mod=None):
+        """
+        Construct azimuthally averaged radial profiles of the kinematics.
+        """
+
+        if vel_mod is not None and vel_mod.size != self.vel.size:
+            raise ValueError('Number of model velocities does not match number of measurements.')
+        if sig_mod is not None and sig_mod.size != self.sig_phys2.size:
+            raise ValueError('Number of model dispersions does not match number of measurements.')
+
+        # Disk-plane coordinates
+        r, th = projected_polar(self.x - xc, self.y - yc, np.radians(pa), np.radians(inc))
+
+        # Mask for data along the major and minor axes
+        major_gpm = select_kinematic_axis(r, th, which='major', r_range='all', wedge=maj_wedge)
+        minor_gpm = select_kinematic_axis(r, th, which='minor', r_range='all', wedge=min_wedge)
+
+        # Projected rotation velocities (within the major axis wedge)
+        indx = major_gpm & np.logical_not(self.vel_mask)
+        vrot_r = r[indx]
+        vrot = (self.vel[indx] - vsys)/np.cos(th[indx])
+        vrot_wgt = self.vel_ivar[indx]*np.cos(th[indx])**2
+        vrot_mod = None if vel_mod is None else (vel_mod[indx] - vsys)/np.cos(th[indx])
+
+        # Projected radial velocities (within the minor axis wedge)
+        indx = minor_gpm & np.logical_not(self.vel_mask)
+        vrad_r = r[indx]
+        vrad = (self.vel[indx] - vsys)/np.sin(th[indx])
+        vrad_wgt = self.vel_ivar[indx]*np.sin(th[indx])**2
+        vrad_mod = None if vel_mod is None else (vel_mod[indx] - vsys)/np.sin(th[indx])
+
+        # Get the binned data
+        binr = np.arange(rstep/2, np.amax(r), rstep)
+        binw = np.full(binr.size, rstep, dtype=float)
+
+        # Projected Velocity profiles
+        _, _, _, _, _, _, _, vrot_ewmean, vrot_ewsdev, _, vrot_ntot, vrot_nbin, vrot_bin_gpm \
+                = bin_stats(vrot_r, vrot, binr, binw, wgts=vrot_wgt, fill_value=0.0) 
+        _, _, _, _, _, _, _, vrad_ewmean, vrad_ewsdev, _, vrad_ntot, vrad_nbin, vrad_bin_gpm \
+                = bin_stats(vrad_r, vrad, binr, binw, wgts=vrad_wgt, fill_value=0.0) 
+        if vel_mod is None:
+            vrotm_ewmean = vrotm_ewsdev = None
+            vradm_ewmean = vradm_ewsdev = None
+        else:
+            _, _, _, _, _, _, _, vrotm_ewmean, vrotm_ewsdev, _, _, _, _ \
+                    = bin_stats(vrot_r[vrot_bin_gpm], vrot_mod[vrot_bin_gpm], binr, binw,
+                                wgts=vrot_wgt[vrot_bin_gpm], fill_value=0.0)
+            _, _, _, _, _, _, _, vradm_ewmean, vradm_ewsdev, _, _, _, _ \
+                    = bin_stats(vrad_r[vrad_bin_gpm], vrad_mod[vrad_bin_gpm], binr, binw,
+                                wgts=vrad_wgt[vrad_bin_gpm], fill_value=0.0) 
+
+        if self.sig is None:
+            # No dispersion data, so we're done
+            return binr, vrot_ewmean, vrot_ewsdev, vrot_ntot, vrot_nbin, \
+                         vrotm_ewmean, vrotm_ewsdev, \
+                         vrad_ewmean, vrad_ewsdev, vrad_ntot, vrad_nbin, \
+                         vradm_ewmean, vradm_ewsdev, \
+                         None, None, None, None, \
+                         None, None, \
+                         None, None, None, None, \
+                         None, None, \
+                         None, None, None, None, \
+                         None, None
+
+        # Convert to corrected dispersion
+        sig = np.sqrt(self.sig_phys2)
+        sigwgt = 4*self.sig_phys2*self.sig_phys2_ivar
+
+        # GPM for all sigma measurements
+        sig_gpm = np.logical_not(self.sig_mask) & (self.sig_phys2 > 0)
+
+        # Get all measurements, independent of azimuth
+        indx = sig_gpm
+        sprof_r = r[indx]
+        sprof = sig[indx]
+        sprof_wgt = sigwgt[indx]
+        sprof_mod = None if sig_mod is None else sig_mod[indx]
+
+        # Get along the major axis
+        indx = sig_gpm & major_gpm
+        smaj_r = r[indx]
+        smaj = sig[indx]
+        smaj_wgt = sigwgt[indx]
+        smaj_mod = None if sig_mod is None else sig_mod[indx]
+
+        # Get along the minor axis
+        indx = sig_gpm & minor_gpm
+        smin_r = r[indx]
+        smin = sig[indx]
+        smin_wgt = sigwgt[indx]
+        smin_mod = None if sig_mod is None else sig_mod[indx]
+
+        # Dispersion profiles
+        _, _, _, _, _, _, _, sprof_ewmean, sprof_ewsdev, _, sprof_ntot, sprof_nbin, sprof_bin_gpm \
+                = bin_stats(sprof_r, sprof, binr, binw, wgts=sprof_wgt, fill_value=0.0) 
+        _, _, _, _, _, _, _, smaj_ewmean, smaj_ewsdev, _, smaj_ntot, smaj_nbin, smaj_bin_gpm \
+                = bin_stats(smaj_r, smaj, binr, binw, wgts=smaj_wgt, fill_value=0.0) 
+        _, _, _, _, _, _, _, smin_ewmean, smin_ewsdev, _, smin_ntot, smin_nbin, smin_bin_gpm \
+                = bin_stats(smin_r, smin, binr, binw, wgts=smin_wgt, fill_value=0.0) 
+        if sig_mod is None:
+            sprofm_ewmean = sprofm_ewsdev = None
+            smajm_ewmean = smajm_ewsdev = None
+            sminm_ewmean = sminm_ewsdev = None
+        else:
+            _, _, _, _, _, _, _, sprofm_ewmean, sprofm_ewsdev, _, _, _, _ \
+                    = bin_stats(sprof_r[sprof_bin_gpm], sprof_mod[sprof_bin_gpm], binr, binw,
+                                wgts=sprof_wgt[sprof_bin_gpm], fill_value=0.0) 
+            _, _, _, _, _, _, _, smajm_ewmean, smajm_ewsdev, _, _, _, _ \
+                    = bin_stats(smaj_r[smaj_bin_gpm], smaj_mod[smaj_bin_gpm], binr, binw,
+                                wgts=smaj_wgt[smaj_bin_gpm], fill_value=0.0) 
+            _, _, _, _, _, _, _, sminm_ewmean, sminm_ewsdev, _, _, _, _ \
+                    = bin_stats(smin_r[smin_bin_gpm], smin_mod[smin_bin_gpm], binr, binw,
+                                wgts=smin_wgt[smin_bin_gpm], fill_value=0.0) 
+
+        return binr, vrot_ewmean, vrot_ewsdev, vrot_ntot, vrot_nbin, \
+                     vrotm_ewmean, vrotm_ewsdev, \
+                     vrad_ewmean, vrad_ewsdev, vrad_ntot, vrad_nbin, \
+                     vradm_ewmean, vradm_ewsdev, \
+                     sprof_ewmean, sprof_ewsdev, sprof_ntot, sprof_nbin, \
+                     sprofm_ewmean, sprofm_ewsdev, \
+                     smaj_ewmean, smaj_ewsdev, smaj_ntot, smaj_nbin, \
+                     smajm_ewmean, smajm_ewsdev, \
+                     smin_ewmean, smin_ewsdev, smin_ntot, smin_nbin, \
+                     sminm_ewmean, sminm_ewsdev
 
 

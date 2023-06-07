@@ -12,7 +12,6 @@ from nirvana.models import asymmetry
 from nirvana.models import axisym
 from nirvana.models import bisym
 from nirvana.models import oned
-from nirvana.data.util import select_major_axis, inverse
 from nirvana.data import manga
 from nirvana.tests.util import remote_data_file, requires_remote
 

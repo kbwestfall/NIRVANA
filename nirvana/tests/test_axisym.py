@@ -294,8 +294,11 @@ def test_disk_fit_derivative():
     #                 x0      y0      pa     inc    vsys   vinf   hv      sig0   hsig
     dp = numpy.array([0.0001, 0.0001, 0.001, 0.001, 0.001, 0.001, 0.0001, 0.001, 0.0001])
 
-    # Run the fit preparation
-    disk._fit_prep(kin, p0, None, None, True, True, True, None)
+    # Prepare
+    disk._init_par(p0, None)
+    disk._init_model(None, kin.grid_x, kin.grid_y, kin.grid_sb, kin.beam_fft, True, None, False)
+    disk._init_data(kin, None, True, True)
+#    disk._fit_prep(kin, p0, None, None, True, True, True, None)
     # Get the method used to generate the figure-of-merit and the jacobian
     fom = disk._get_fom()
     jac = disk._get_jac()

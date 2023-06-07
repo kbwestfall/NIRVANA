@@ -15,7 +15,7 @@ from astropy.io import fits
 from astropy.cosmology import FlatLambdaCDM
 
 from ..models.geometry import projected_polar
-from .util import select_major_axis
+from .util import select_kinematic_axis
 
 class GlobalPar:
     r"""
@@ -181,7 +181,8 @@ class GlobalPar:
         r, th = projected_polar(x, y, np.radians(self.pa),
                                 np.radians(self.guess_inclination(lb=1., ub=89.)))
         # Create a mask that selects data near the major axis
-        gpm = select_major_axis(r, th, r_range=r_range, wedge=wedge)
+        gpm = select_kinematic_axis(r, th, which='major', r_range=r_range, wedge=wedge)
+#        gpm = select_major_axis(r, th, r_range=r_range, wedge=wedge)
         # Include any input mask
         gpm |= np.logical_not(np.ma.getmaskarray(v))
 

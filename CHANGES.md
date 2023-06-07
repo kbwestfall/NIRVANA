@@ -33,6 +33,13 @@
  - Added new asymmetry map calculations and plots
  - Begins development of a `BisymmetricDisk` class the mimics the
    `AxisymmetricDisk` class.
+ - Consolidate common functionality between `AxisymmetricDisk` and
+   `BisymmetricDisk` into a common parent class called `ThinDisk`.
+ - Construct radial profiles of deprojected kinematics
+ - Save radial profiles along the major and minor axes of both the tangential
+   speed and the velocity dispersion
+ - Fit rejection iterations moved to common parent class, `ThinDisk`.
+   
 
 
 0.1.0

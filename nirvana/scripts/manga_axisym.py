@@ -108,7 +108,9 @@ def parse_args(options=None):
                              'region.')
     parser.add_argument('--screen', default=False, action='store_true',
                         help='Indicate that the script is being run behind a screen (used to set '
-                             'matplotlib backend).') 
+                             'matplotlib backend).')
+    parser.add_argument('--skip_plots', default=False, action='store_true',
+                        help='Skip the QA plots and just produce the main output file.')
 
     # TODO: Other options:
     #   - Fit with least-squares vs. dynesty
@@ -180,12 +182,18 @@ def main(args):
                                      select_coherent=args.coherent, fit_scatter=args.fit_scatter,
                                      verbose=args.verbose)
 
+    # Write the output file
+    data_file = os.path.join(args.odir, f'{oroot}.fits.gz')
+    axisym.axisym_fit_data(galmeta, kin, p0, disk, data_file, vel_mask, sig_mask)
+
+    if args.skip_plots:
+        return
+
     # Plot the final residuals
     dv_plot = os.path.join(args.odir, f'{oroot}-vdist.png')
     ds_plot = os.path.join(args.odir, f'{oroot}-sdist.png')
-    axisym.disk_fit_resid_dist(kin, disk, disp=args.disp, ignore_covar=not args.covar,
-                               vel_mask=vel_mask, vel_plot=dv_plot, sig_mask=sig_mask,
-                               sig_plot=ds_plot) 
+    disk.reject(disp=args.disp, ignore_covar=not args.covar, vel_plot=dv_plot, sig_plot=ds_plot,
+                plots_only=True) 
 
     # Plot the fit asymmetry
     asym_plot = os.path.join(args.odir, f'{oroot}-asym.png')
@@ -198,9 +206,5 @@ def main(args):
     # Create the final fit plot
     fit_plot = os.path.join(args.odir, f'{oroot}-fit.png')
     axisym.axisym_fit_plot(galmeta, kin, disk, fix=fix, ofile=fit_plot)
-
-    # Write the output file
-    data_file = os.path.join(args.odir, f'{oroot}.fits.gz')
-    axisym.axisym_fit_data(galmeta, kin, p0, disk, data_file, vel_mask, sig_mask)
 
 

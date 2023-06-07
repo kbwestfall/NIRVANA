@@ -55,25 +55,10 @@ def test_disk():
 #    kin = manga.MaNGAGasKinematics.from_plateifu(8078, 12703, cube_path=data_root,
 #                                                 maps_path=data_root, ignore_psf=True)
 #
-#    rc = HyperbolicTangent(lb=numpy.array([0., 1e-3]), ub=numpy.array([500., kin.max_radius()]))
-#    # Set the disk velocity field
-#    axisym_disk = AxisymmetricDisk(rc=rc)
-#    # Fit it with a non-linear least-squares optimizer
-#    axisym_disk.lsq_fit(kin, verbose=2)
-#
-#    embed()
-#    exit()
-#
 #    # Set the disk velocity field
 #    bisym_disk = BisymmetricDisk()
 #    # Fit it with a non-linear least-squares optimizer
 #    bisym_disk.lsq_fit(kin, verbose=2, analytic_jac=False)
-#
-#    assert numpy.all(numpy.absolute(disk.par[:2]) < 0.1), 'Center changed'
-#    assert 165. < disk.par[2] < 167., 'PA changed'
-#    assert 53. < disk.par[3] < 55., 'Inclination changed'
-#    assert 243. < disk.par[5] < 245., 'Projected rotation changed'
-#
 #
 #test_lsq_nopsf()
 #
