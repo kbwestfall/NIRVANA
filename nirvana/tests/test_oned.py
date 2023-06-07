@@ -130,7 +130,6 @@ def test_lin_2d():
     d2dr2 = f.d2dx2(r)
     assert d2dr2.shape == r.shape, 'd2dr2 shape changed'
 
-test_lin_2d()
 
 def test_lin_ddx():
     n = 10
