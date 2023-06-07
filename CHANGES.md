@@ -30,7 +30,9 @@
    model for comparison with the data.  The new approach should nominally be
    closer to the effects of binning the spectra and then fitting the kinematics.
  - Added method to compute Fisher Information Matrix for axisymmetric fits.
- - Added new asymmetry map calculations
+ - Added new asymmetry map calculations and plots
+ - Begins development of a `BisymmetricDisk` class the mimics the
+   `AxisymmetricDisk` class.
 
 
 0.1.0
