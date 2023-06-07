@@ -328,13 +328,14 @@ class PiecewiseLinear(Func1D):
         """
         if par is not None:
             self._set_par(par)
-        f = np.full(len(x), self.par[0], dtype=float)
-        i2 = self._sort(x, check)
+        _x = np.asarray(x)
+        f = np.full(_x.size, self.par[0], dtype=float)
+        i2 = self._sort(_x.flat, check)
         indx = (i2 > 0) & (i2 < self.np)
-        f[indx] = lin_interp(x[indx], self.edges[i2[indx]-1], self.par[i2[indx]-1],
-                             self.edges[i2[indx]], self.par[i2[indx]])
+        f[indx] = lin_interp(_x.flat[indx], self.edges[i2[indx]-1], self.par[i2[indx]-1],
+                                      self.edges[i2[indx]], self.par[i2[indx]])
         f[i2 == self.np] = self.par[-1]
-        return f
+        return f.reshape(_x.shape)
 
     def deriv_sample(self, x, par=None, check=False):
         """
@@ -364,20 +365,23 @@ class PiecewiseLinear(Func1D):
         """
         if par is not None:
             self._set_par(par)
-        f = np.full(len(x), self.par[0], dtype=float)
-        df = np.zeros((len(x), self.np), dtype=float)
-        i2 = self._sort(x, check)
+        _x = np.asarray(x)
+        f = np.full(_x.size, self.par[0], dtype=float)
+        df = np.zeros((_x.size, self.np), dtype=float)
+        i2 = self._sort(_x.flat, check)
         indx = (i2 > 0) & (i2 < self.np)
-        f[indx], _df = deriv_lin_interp(x[indx], self.edges[i2[indx]-1], self.par[i2[indx]-1],
+        f[indx], _df = deriv_lin_interp(_x.flat[indx], self.edges[i2[indx]-1], self.par[i2[indx]-1],
                                         self.edges[i2[indx]], self.par[i2[indx]])
         df[indx,i2[indx]-1] = _df[:,0]
         df[indx,i2[indx]] = _df[:,1]
         indx = i2 == self.np
-        df[np.where(indx)[0],np.array([self.np-1]*np.sum(indx))] = 1.
-        f[indx] = self.par[-1]
+        if any(indx):
+            df[np.where(indx)[0],np.array([self.np-1]*np.sum(indx))] = 1.
+            f[indx] = self.par[-1]
         indx = i2 == 0
-        df[np.where(indx)[0],np.array([0]*np.sum(indx))] = 1.
-        return f, df
+        if any(indx):
+            df[np.where(indx)[0],np.array([0]*np.sum(indx))] = 1.
+        return f.reshape(_x.shape), df.reshape(*_x.shape, -1)
 
     def ddx(self, x, par=None, check=False):
         """
@@ -386,19 +390,20 @@ class PiecewiseLinear(Func1D):
         """
         if par is not None:
             self._set_par(par)
-        f = np.zeros(len(x), dtype=float)
-        i2 = self._sort(x, check)
+        _x = np.asarray(x)
+        f = np.zeros(_x.size, dtype=float)
+        i2 = self._sort(_x.flat, check)
         indx = (i2 > 0) & (i2 < self.np)
         m = np.diff(self.par)/np.diff(self.edges)
         f[indx] = m[i2[indx]-1]
-        return f
+        return f.reshape(_x.shape)
 
     def d2dx2(self, x, par=None, check=False):
         """
         Sample the second derivative of the step function. See
         :func:`sample` for the argument descriptions.
         """
-        return np.zeros(len(x), dtype=float)
+        return np.zeros(np.asarray(x).shape, dtype=float)
 
 
 class HyperbolicTangent(Func1D):
