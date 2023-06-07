@@ -270,10 +270,10 @@ def main(args):
 
     # Get the model velocities and dispersions
     if disk.dc is None:
-        vel = disk.model(p0, x=x, y=y, sb=sb, beam=beam_sim)
+        vel = disk.model(par=p0, x=x, y=y, sb=sb, beam=beam_sim)
         sig = None
     else:
-        vel, sig = disk.model(p0, x=x, y=y, sb=sb, beam=beam_sim)
+        vel, sig = disk.model(par=p0, x=x, y=y, sb=sb, beam=beam_sim)
     _, vel, sig = binner.bin_moments(smeared_sb, vel, sig)
     vel = binner.remap(vel)
     sig = np.full(vel.shape, 30., dtype=float) if sig is None else binner.remap(sig)
@@ -340,6 +340,8 @@ def main(args):
             noisy_mock.update_sigma(sig=_sig2, sqr=True)
             _sig2[sgpm] -= ds2[i]
 
+        # TODO: Change this to use the same fit function as used by the
+        # manga_axisym.py script.
         disk.lsq_fit(noisy_mock, sb_wgt=True, p0=p0, scatter=None, verbose=args.verbose,
                      assume_posdef_covar=True, ignore_covar=not args.covar_fit, cnvfftw=cnvfftw)
 

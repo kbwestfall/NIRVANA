@@ -9,6 +9,7 @@ from nirvana.tests.util import remote_data_file, remote_drp_test_files, remote_d
 from nirvana.tests.util import remote_dap_test_files
 from nirvana.tests.util import drp_test_version, dap_test_version, dap_test_daptype
 
+# TODO: Change this to use the (now) public data
 try:
     NETRC = netrc.netrc()
 except Exception as e:

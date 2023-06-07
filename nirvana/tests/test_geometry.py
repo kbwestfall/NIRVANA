@@ -8,6 +8,26 @@ import numpy
 
 from nirvana.models import geometry
 
+
+def test_disk_ellipse():
+    pa = numpy.radians(90.)
+    inc = numpy.radians(90.)
+    x, y = geometry.disk_ellipse(10., pa, inc)
+
+    assert numpy.all((x >=-10) & (x <= 10.)), 'Bad radius'
+    assert numpy.allclose(y, numpy.zeros(y.size)), 'Should be a line.'
+
+    pa = numpy.radians(0.)
+    x, y = geometry.disk_ellipse(10., pa, inc)
+    assert numpy.allclose(x, numpy.zeros(x.size)), 'Should be a line.'
+
+    pa = numpy.radians(45.)
+    inc = numpy.radians(45.)
+    x, y = geometry.disk_ellipse(10., pa, inc, xc=2, yc=-3, num=10000)
+    assert numpy.isclose(numpy.mean(x), 2., rtol=1e-3), 'Bad center'
+    assert numpy.isclose(numpy.mean(y), -3., rtol=1e-3), 'Bad center'
+
+
 def test_polar():
 
     n = 51

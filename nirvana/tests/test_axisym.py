@@ -23,9 +23,9 @@ def test_disk():
     y = numpy.arange(n, dtype=float) - n//2
     x, y = numpy.meshgrid(x, y)
 
-    vel = disk.model(disk.par, x=x, y=y)
+    vel = disk.model(x=x, y=y)
     beam = gauss2d_kernel(n, 3.)
-    _vel = disk.model(disk.par, x=x, y=y, beam=beam)
+    _vel = disk.model(x=x, y=y, beam=beam)
 
     assert numpy.isclose(vel[n//2,n//2], _vel[n//2,n//2]), 'Smearing moved the center.'
 
@@ -56,7 +56,7 @@ def test_disk_derivative_nosig():
         _p = p.copy()
         _p[i] += dp[i]
         # These calls to `model` reuse the previously provided x and y
-        vp[...,i] = disk.model(_p)
+        vp[...,i] = disk.model(par=_p)
     disk._set_par(p)
 
     fd_dv = (vp - v[...,None])/dp[None,:]
@@ -78,7 +78,7 @@ def test_disk_derivative_nosig():
         _p[i] += dp[i]
         # These calls to `model` reuse the previously provided x, y, beam, and
         # cnvfftw
-        vp[...,i] = disk.model(_p)
+        vp[...,i] = disk.model(par=_p)
     disk._set_par(p)
 
     fd_dv = (vp - v[...,None])/dp[None,:]
@@ -114,7 +114,7 @@ def test_disk_derivative():
         _p = p.copy()
         _p[i] += dp[i]
         # These calls to `model` reuse the previously provided x and y
-        vp[...,i], sigp[...,i] = disk.model(_p)
+        vp[...,i], sigp[...,i] = disk.model(par=_p)
     disk._set_par(p)
 
     fd_dv = (vp - v[...,None])/dp[None,:]
@@ -142,7 +142,7 @@ def test_disk_derivative():
         _p[i] += dp[i]
         # These calls to `model` reuse the previously provided x, y, beam, and
         # cnvfftw
-        vp[...,i], sigp[...,i] = disk.model(_p)
+        vp[...,i], sigp[...,i] = disk.model(par=_p)
     disk._set_par(p)
 
     fd_dv = (vp - v[...,None])/dp[None,:]
@@ -197,7 +197,7 @@ def test_disk_derivative_bin():
         _p[i] += dp[i]
         # These calls to `model` reuse the previously provided x, y, sb, beam,
         # and cnvfftw
-        vp[...,i], sigp[...,i] = disk.model(_p)
+        vp[...,i], sigp[...,i] = disk.model(par=_p)
         bvp[...,i] = kin.bin(vp[...,i])
         bsigp[...,i] = kin.bin(sigp[...,i])
     disk._set_par(p)
@@ -254,7 +254,7 @@ def test_disk_derivative_bin_moments():
         _p[i] += dp[i]
         # These calls to `model` reuse the previously provided x, y, sb, beam,
         # and cnvfftw
-        vp[...,i], sigp[...,i] = disk.model(_p)
+        vp[...,i], sigp[...,i] = disk.model(par=_p)
         _, bvp[...,i], bsigp[...,i] = kin.bin_moments(None, vp[...,i], sigp[...,i])
     disk._set_par(p)
 
@@ -451,7 +451,7 @@ def test_mock_noerr():
     p0 = numpy.array([-0.2, -0.08, 166.3, 53.0, 25.6, 217.0, 2.82, 189.7, 16.2])
 
     disk = AxisymmetricDisk(rc=HyperbolicTangent(), dc=Exponential())
-    v, s = disk.model(p0, x=kin.grid_x, y=kin.grid_y, sb=kin.grid_sb, beam=kin.beam_fft,
+    v, s = disk.model(par=p0, x=kin.grid_x, y=kin.grid_y, sb=kin.grid_sb, beam=kin.beam_fft,
                       is_fft=True)
 
     _, bv, bs = kin.bin_moments(kin.grid_sb, v, s)
@@ -478,7 +478,7 @@ def test_mock_err():
     p0 = numpy.array([-0.2, -0.08, 166.3, 53.0, 25.6, 217.0, 2.82, 189.7, 16.2])
 
     disk = AxisymmetricDisk(rc=HyperbolicTangent(), dc=Exponential())
-    v, s = disk.model(p0, x=kin.grid_x, y=kin.grid_y, sb=kin.grid_sb, beam=kin.beam_fft,
+    v, s = disk.model(par=p0, x=kin.grid_x, y=kin.grid_y, sb=kin.grid_sb, beam=kin.beam_fft,
                       is_fft=True)
     _, bv, bs = kin.bin_moments(kin.grid_sb, v, s)
     vremap = kin.remap(bv, mask=kin.vel_mask)
@@ -505,7 +505,7 @@ def test_mock_covar():
     p0 = numpy.array([-0.2, -0.08, 166.3, 53.0, 25.6, 217.0, 2.82, 189.7, 16.2])
 
     disk = AxisymmetricDisk(rc=HyperbolicTangent(), dc=Exponential())
-    v, s = disk.model(p0, x=kin.grid_x, y=kin.grid_y, sb=kin.grid_sb, beam=kin.beam_fft,
+    v, s = disk.model(par=p0, x=kin.grid_x, y=kin.grid_y, sb=kin.grid_sb, beam=kin.beam_fft,
                       is_fft=True)
     vremap = kin.remap(kin.bin(v), mask=kin.vel_mask)
     sremap = kin.remap(kin.bin(s), mask=kin.sig_mask)
@@ -559,6 +559,6 @@ def test_fisher():
         #   (0,1) - The center coordinates
         for correlated_pair in zip(indx[0][srt], indx[1][srt]):
             assert correlated_pair in [(7,8), (1,4), (3,5), (5,6)], \
-                'Unexpected pair with strong correlation'
+                    'Unexpected pair with strong correlation'
 
 

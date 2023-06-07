@@ -214,10 +214,12 @@ def main(args):
     fits.HDUList([fits.PrimaryHDU(header=hdr),
                   fits.BinTableHDU.from_columns(
                         [fits.Column(name=n, format=fileio.rec_to_fits_type(gas_metadata[n]),
+                                     dim=fileio.rec_to_fits_col_dim(gas_metadata[n]),
                                      array=gas_metadata[n]) for n in gas_metadata.dtype.names],
                         name='GAS', header=hdr),
                   fits.BinTableHDU.from_columns(
                         [fits.Column(name=n, format=fileio.rec_to_fits_type(str_metadata[n]),
+                                     dim=fileio.rec_to_fits_col_dim(str_metadata[n]),
                                      array=str_metadata[n]) for n in str_metadata.dtype.names],
                         name='STARS', header=hdr)]).writeto(_ofile, overwrite=True, checksum=True)
     if compress:

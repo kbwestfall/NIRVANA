@@ -20,6 +20,7 @@ from .oned import HyperbolicTangent, Exponential, ExpBase, Const, PolyEx
 from .geometry import projected_polar, deriv_projected_polar
 from .beam import ConvolveFFTW, smear, deriv_smear
 from .util import cov_err
+from . import asymmetry
 from ..data.kinematics import Kinematics
 from ..data.scatter import IntrinsicScatter
 from ..data.util import impose_positive_definite, cinv, inverse, find_largest_coherent_region
@@ -695,7 +696,7 @@ class AxisymmetricDisk:
 
     def _init_par(self, p0, fix):
         """
-        Initialize the relevant parameter vectors that track the full set of
+        Initialize the relevant parameter vectors that tracks the full set of
         model parameters and which of those are freely fit by the model.
 
         Args:
@@ -1897,12 +1898,20 @@ def _fit_meta_dtype(par_names):
             ('IFU', np.int16),
             ('OBJRA', np.float),
             ('OBJDEC', np.float),
+            # Redshift used by the DAP to (nominally) offset the velocity field
+            # to 0 bulk velocity.
             ('Z', np.float),
+            # The conversion factor used to convert arcseconds to kpc
             ('ASEC2KPC', np.float),
+            # NSA-fit effective radius in arcseconds
             ('REFF', np.float),
+            # NSA-fit Sersic index
             ('SERSICN', np.float),
+            # NSA-fit position angle
             ('PA', np.float),
+            # NSA-fit ellipticity
             ('ELL', np.float),
+            # Assumed intrinsic oblateness
             ('Q0', np.float),
             # VNFIT is the total number of velocity measurements included in the
             # fit.
@@ -1918,14 +1927,31 @@ def _fit_meta_dtype(par_names):
             # VNREJ is the number of velocity measurements masked by the fit
             # only due to outlier rejection.
             ('VNREJ', np.int),
+            # VMEDE is the median observed error in the data included in the
+            # fit.
             ('VMEDE', np.float),
+            # VMENR is the mean of the error-normalized residuals of the data
+            # included in the fit.
             ('VMENR', np.float),
+            # VSIGR is the standard deviation of the error-normalized residuals
+            # of the data included in the fit.
             ('VSIGR', np.float),
+            # VGRWR is the 1-, 2-, and 3-sigma growth and the maximum value of
+            # the error-normalized residuals of the data included in the fit.
             ('VGRWR', np.float, (4,)),
+            # VISCT is the intrinsic scatter term used in the fit.
             ('VISCT', np.float),
+            # VSIGIR is the same as VSIGR but includes the intrinsic scatter
+            # modification of the erro.
             ('VSIGIR', np.float),
+            # VGRWIR is the same as VGRWR but includes the intrinsic scatter
+            # modification of the erro.
             ('VGRWIR', np.float, (4,)),
+            # VCHI2 is the reduced chi-square only for the velocity data and
+            # excluding the instrinsic scatter modification of the error.
             ('VCHI2', np.float),
+            # VASYM is the 50%, 80%, and 90% growth of the 3 asymmetry maps
+            ('VASYM', np.float, (3,3)),
             # SNFIT is the total number of dispersion measurements included in
             # the fit.
             ('SNFIT', np.int),
@@ -1940,17 +1966,43 @@ def _fit_meta_dtype(par_names):
             # SNREJ is the number of dispersion measurements masked by the fit
             # only due to outlier rejection.
             ('SNREJ', np.int),
+            # Same as VMEDE, but for the velocity dispersion instead of the
+            # velocity.
             ('SMEDE', np.float),
+            # Same as VMENR, but for the velocity dispersion instead of the
+            # velocity.
             ('SMENR', np.float),
+            # Same as VSIGR, but for the velocity dispersion instead of the
+            # velocity.
             ('SSIGR', np.float),
+            # Same as VGRWR, but for the velocity dispersion instead of the
+            # velocity.
             ('SGRWR', np.float, (4,)),
+            # Same as VISCT, but for the velocity dispersion instead of the
+            # velocity.
             ('SISCT', np.float),
+            # Same as VSIGIR, but for the velocity dispersion instead of the
+            # velocity.
             ('SSIGIR', np.float),
+            # Same as VGRWIR, but for the velocity dispersion instead of the
+            # velocity.
             ('SGRWIR', np.float, (4,)),
+            # Same as VCHI2, but for the velocity dispersion instead of the
+            # velocity.
             ('SCHI2', np.float),
+            # Same as VASYM but for the velocity dispersion, instead of the
+            # velocity.  Note that sigma is calculated as sigma/sqrt(abs(sigma))
+            # as a way of calculating the sqrt while maintaining the sign.
+            # TODO: Revisit the sigma asymmetry calculations!
+            ('SASYM', np.float, (3,3)),
+            # The total chi-square of the fit, includeing the intrinsic scatter
+            # modification of the error.
             ('CHI2', np.float),
+            # Reduced chi-square
             ('RCHI2', np.float),
+            # Status index of the fit returned by scipy.optimize.least_squares
             ('STATUS', np.int),
+            # A simple boolean indication that the fit did not fault
             ('SUCCESS', np.int)] + gp + bp + bpe
 
 
@@ -1977,6 +2029,9 @@ def axisym_fit_data(galmeta, kin, p0, disk, ofile, vmask, smask):
             Vector with the mask bit values for each dispersion measurement in
             ``kin``.
     """
+
+    # TODO: Add covariance if used
+
     # Rebuild the 2D maps
     #   - Bin ID
     binid = kin.remap('binid', masked=False, fill_value=-1)
@@ -1985,23 +2040,46 @@ def axisym_fit_data(galmeta, kin, p0, disk, ofile, vmask, smask):
                             *np.radians(disk.par[2:4]))
     #   - Surface-brightness (in per spaxel units not per sq. arcsec).
     didnotuse = disk.mbm.minimum_dtype()(disk.mbm.turn_on(0, flag='DIDNOTUSE'))
-    # TODO: kin.grid_sb is now used for the luminosity weighting instead of
-    # kin.remap('sb')!
+    grid_sb = kin.grid_sb
     sb = kin.remap('sb', masked=False, fill_value=0.)
     sb_ivar = kin.remap('sb_ivar', masked=False, fill_value=0.)
     _mask = kin.remap('sb_mask', masked=False, fill_value=True)
     sb_mask = disk.mbm.init_mask_array(sb.shape)
     sb_mask[_mask] = disk.mbm.turn_on(sb_mask[_mask], flag='DIDNOTUSE')
-    #   - Velocity
+
+    #   - Velocities
     vel = kin.remap('vel', masked=False, fill_value=0.)
     vel_ivar = kin.remap('vel_ivar', masked=False, fill_value=0.)
     vel_mask = kin.remap(vmask, masked=False, fill_value=didnotuse)
+    vel_x, vel_y, vel_xy = asymmetry.onsky_asymmetry_maps(kin.grid_x-disk.par[0],
+                                                          kin.grid_y-disk.par[1], vel-disk.par[4],
+                                                          pa=disk.par[2], mask=vel_mask>0,
+                                                          odd=True, maxd=0.4)
+    vel_asym = np.array([vel_x.filled(0.0), vel_y.filled(0.0), vel_xy.filled(0.0)])
+    vel_asym_mask = np.array([np.ma.getmaskarray(vel_x).copy(), np.ma.getmaskarray(vel_y).copy(),
+                              np.ma.getmaskarray(vel_xy).copy()])
+
     #   - Corrected velocity dispersion squared
-    sigsqr = None if disk.dc is None else kin.remap('sig_phys2', masked=False, fill_value=0.)
-    sigsqr_ivar = None if disk.dc is None \
-                        else kin.remap('sig_phys2_ivar', masked=False,fill_value=0.)
-    sigsqr_mask = None if disk.dc is None or smask is None \
+    if disk.dc is None:
+        sigsqr = None
+        sigsqr_ivar = None
+        sigsqr_mask = None
+        sig_asym = None
+        sig_asym_mask = None
+    else:
+        sigsqr = kin.remap('sig_phys2', masked=False, fill_value=0.)
+        sigsqr_ivar = kin.remap('sig_phys2_ivar', masked=False,fill_value=0.)
+        sigsqr_mask = None if smask is None \
                         else kin.remap(smask, masked=False, fill_value=didnotuse)
+        sig = sigsqr/np.sqrt(np.absolute(sigsqr))
+        sig_x, sig_y, sig_xy \
+                = asymmetry.onsky_asymmetry_maps(kin.grid_x-disk.par[0], kin.grid_y-disk.par[1],
+                                                 sig, pa=disk.par[2], mask=sigsqr_mask>0,
+                                                 maxd=0.4)
+        sig_asym = np.array([sig_x.filled(0.0), sig_y.filled(0.0), sig_xy.filled(0.0)])
+        sig_asym_mask = np.array([np.ma.getmaskarray(sig_x).copy(),
+                                  np.ma.getmaskarray(sig_y).copy(),
+                                  np.ma.getmaskarray(sig_xy).copy()])
 
     # Instantiate the single-row table with the metadata:
     disk_par_names = disk.par_names(short=True)
@@ -2047,6 +2125,10 @@ def axisym_fit_data(galmeta, kin, p0, disk, ofile, vmask, smask):
         metadata['VISCT'] = 0.0 if disk.scatter is None else disk.scatter[0]
         metadata['VCHI2'] = np.sum(vfom**2)
 
+        metadata['VASYM'] = np.array([np.percentile(np.absolute(a[np.logical_not(m)]),
+                                                    [50., 80., 90.])
+                                for a, m in zip(vel_asym, vel_asym_mask)])
+
         nsig = 0.
         sig_mod = None
         sig_mod_intr = None
@@ -2070,6 +2152,10 @@ def axisym_fit_data(galmeta, kin, p0, disk, ofile, vmask, smask):
         metadata['VISCT'] = 0.0 if disk.scatter is None else disk.scatter[0]
         metadata['VCHI2'] = np.sum(vfom**2)
 
+        metadata['VASYM'] = np.array([np.percentile(np.absolute(a[np.logical_not(m)]),
+                                                    [50., 80., 90.])
+                                for a, m in zip(vel_asym, vel_asym_mask)])
+        
         sig_mod = kin.remap(kin.bin(models[1]), masked=False, fill_value=0.)
         sig_mod_intr = kin.remap(kin.bin(intr_models[1]), masked=False, fill_value=0.)
 
@@ -2089,6 +2175,10 @@ def axisym_fit_data(galmeta, kin, p0, disk, ofile, vmask, smask):
         metadata['SISCT'] = 0.0 if disk.scatter is None else disk.scatter[1]
         metadata['SCHI2'] = np.sum(sfom**2)
 
+        metadata['SASYM'] = np.array([np.percentile(np.absolute(a[np.logical_not(m)]),
+                                                    [50., 80., 90.])
+                                for a, m in zip(sig_asym, sig_asym_mask)])
+        
     # Total fit chi-square. SCHI2 and SNFIT are 0 if sigma not fit because of
     # the instantiation value of init_record_array
     metadata['CHI2'] = metadata['VCHI2'] + metadata['SCHI2']
@@ -2128,6 +2218,10 @@ def axisym_fit_data(galmeta, kin, p0, disk, ofile, vmask, smask):
             fits.ImageHDU(data=binid, header=fileio.finalize_header(maphdr, 'BINID'), name='BINID'),
             fits.ImageHDU(data=r, header=fileio.finalize_header(maphdr, 'R'), name='R'),
             fits.ImageHDU(data=th, header=fileio.finalize_header(maphdr, 'THETA'), name='THETA'),
+            fits.ImageHDU(data=grid_sb,
+                          header=fileio.finalize_header(maphdr, 'GRIDFLUX',
+                                                        bunit='1E-17 erg/s/cm^2/ang/spaxel'),
+                          name='GRIDFLUX'),
             fits.ImageHDU(data=sb,
                           header=fileio.finalize_header(maphdr, 'FLUX',
                                                         bunit='1E-17 erg/s/cm^2/ang/spaxel',
@@ -2159,7 +2253,16 @@ def axisym_fit_data(galmeta, kin, p0, disk, ofile, vmask, smask):
                           name='VEL_MOD'),
             fits.ImageHDU(data=vel_mod_intr,
                           header=fileio.finalize_header(maphdr, 'VEL_MODI', bunit='km/s'),
-                          name='VEL_MODI')]
+                          name='VEL_MODI'),
+            # TODO: include channel names?
+            fits.ImageHDU(data=vel_asym,
+                          header=fileio.finalize_header(maphdr, 'VEL_ASYM', bunit='km/s',
+                                                        qual=True),
+                          name='VEL_ASYM'),
+            fits.ImageHDU(data=vel_asym_mask.astype(np.uint8),
+                          header=fileio.finalize_header(maphdr, 'VEL_ASYM', hduclas2='QUALITY',
+                                                        bit_type=np.uint8),
+                          name='VEL_ASYM_MASK')]
 
     if disk.dc is not None:
         hdus += [fits.ImageHDU(data=sigsqr,
@@ -2179,17 +2282,24 @@ def axisym_fit_data(galmeta, kin, p0, disk, ofile, vmask, smask):
                           name='SIG_MOD'),
             fits.ImageHDU(data=sig_mod_intr,
                           header=fileio.finalize_header(maphdr, 'SIG_MODI', bunit='km/s'),
-                          name='SIG_MODI')]
+                          name='SIG_MODI'),
+            fits.ImageHDU(data=sig_asym,
+                          header=fileio.finalize_header(maphdr, 'SIG_ASYM', bunit='(km/s)^2',
+                                                        qual=True),
+                          name='SIG_ASYM'),
+            fits.ImageHDU(data=sig_asym_mask.astype(np.uint8),
+                          header=fileio.finalize_header(maphdr, 'SIG_ASYM', hduclas2='QUALITY',
+                                                        bit_type=np.uint8),
+                          name='SIG_ASYM_MASK')]
 
     if kin.beam is not None:
         hdus += [fits.ImageHDU(data=kin.beam,
                                header=fileio.finalize_header(psfhdr, 'PSF'), name='PSF')]
 
-    hdus += [fits.BinTableHDU.from_columns([fits.Column(name=n,
-                                                        format=fileio.rec_to_fits_type(metadata[n]),
-                                                        array=metadata[n])
-                                             for n in metadata.dtype.names],
-                                           name='FITMETA', header=tblhdr)]
+    hdus += [fits.BinTableHDU.from_columns([
+                    fits.Column(name=n, format=fileio.rec_to_fits_type(metadata[n]),
+                                dim=fileio.rec_to_fits_col_dim(metadata[n]), array=metadata[n])
+                        for n in metadata.dtype.names], name='FITMETA', header=tblhdr)]
 
     if ofile.split('.')[-1] == 'gz':
         _ofile = ofile[:ofile.rfind('.')]

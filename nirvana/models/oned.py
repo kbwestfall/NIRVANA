@@ -1160,7 +1160,7 @@ class PowerExp(Func1D):
             self._set_par(par)
         c = (np.e / self.par[1] / self.par[2])**self.par[2]
         indx = np.absolute(x) > 1e-10
-        deriv = np.zeros(x.size, dtype=float)
+        deriv = np.zeros(x.shape, dtype=float)
         deriv[indx] = self.sample(x[indx]) * (self.par[2]/x[indx] - 1/self.par[1]) 
         return deriv
 

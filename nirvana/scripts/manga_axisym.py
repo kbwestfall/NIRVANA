@@ -6,6 +6,7 @@ import argparse
 
 from IPython import embed
 
+import numpy as np
 from matplotlib import pyplot
 
 from ..data import manga
@@ -185,6 +186,14 @@ def main(args):
     axisym.disk_fit_resid_dist(kin, disk, disp=args.disp, ignore_covar=not args.covar,
                                vel_mask=vel_mask, vel_plot=dv_plot, sig_mask=sig_mask,
                                sig_plot=ds_plot) 
+
+    # Plot the fit asymmetry
+    asym_plot = os.path.join(args.odir, f'{oroot}-asym.png')
+    kin.asymmetry_plot(galmeta=galmeta, xc=disk.par[0], yc=disk.par[1], pa=disk.par[2],
+                       vsys=disk.par[4], fwhm=galmeta.psf_fwhm[1], 
+                       vel_mask=np.logical_not(disk.vel_gpm),
+                       sig_mask=None if disk.dc is None else np.logical_not(disk.sig_gpm),
+                       ofile=asym_plot)
 
     # Create the final fit plot
     fit_plot = os.path.join(args.odir, f'{oroot}-fit.png')

@@ -23,7 +23,7 @@ def test_kinpa():
     y = numpy.arange(n, dtype=float) - n//2
     x, y = numpy.meshgrid(x, y)
 
-    vel = disk.model(disk.par, x=x, y=y)
+    vel = disk.model(par=disk.par, x=x, y=y)
 
     # Set the global parameters with a flipped position angle
     gp = GlobalPar(pa=-135., ell=0.5, q0=0.)

@@ -323,6 +323,62 @@ class IntrinsicScatter:
 
     def stats(self, sig=None, rej=None, gpm=None):
         """
+        Compute a fixed set of statistics for the error distribution.
+
+        Parameters
+        ----------
+        sig : :obj:`float`, optional
+            Intrinsic scatter to use.  If None, :attr:`sig` is used, which
+            should be from a previous determination of the intrinsic scatter.
+        rej : `numpy.ndarray`_, optional
+            Boolean vector with the data that were rejected as outliers.
+        gpm : `numpy.ndarray`_, optional
+            Boolean vector indicating the "good" data that were included in the
+            intrinsic scatter analysis.
+
+        Returns
+        -------
+        ntot : :obj:`int`
+            The total number of "good" data points (uses :attr:`inp_gpm`).
+        nrej : :obj:`int
+            The number of rejected outliers.
+        median_eps : :obj:`float`
+            The median measurement error of all unrejected data points.
+        enres_def : `numpy.ndarray`_
+            The error normalized residuals.  Excludes any intrinsic scatter
+            term.
+        chidof_def : :obj:`float`
+            The chi-square value minus the number of degrees of freedom.  This
+            should be near 0 for a reduced chi-square near 1.  Excludes any
+            intrinsic scatter term.
+        mean_enres_def : :obj:`float`
+            Mean of the error-normalized residuals.  Excludes any intrinsic
+            scatter term.
+        sigma_enres_def : :obj:`float`
+            Standard deviation of the error-normalized residuals.   Excludes any
+            intrinsic scatter term.
+        grw_enres_def : `numpy.ndarray`_
+            Vector with the 1-, 2-, and 3-sigma growth values of the absolute
+            value of the error-normalized residuals, as well as the maximum
+            value.  Excludes any intrinsic scatter term.
+        enres : `numpy.ndarray`_
+            The error normalized residuals.  Includes the intrinsic scatter
+            term.
+        chidof : :obj:`float`
+            The chi-square value minus the number of degrees of freedom.  This
+            should be near 0 for a reduced chi-square near 1.  Includes the
+            intrinsic scatter term.
+        mean_enres : :obj:`float`
+            Mean of the error-normalized residuals.  Includes the intrinsic
+            scatter term.
+        sigma_enres : :obj:`float`
+            Standard deviation of the error-normalized residuals.   Includes the
+            intrinsic scatter term.
+        grw_enres : `numpy.ndarray`_
+            Vector with the 1-, 2-, and 3-sigma growth values of the absolute
+            value of the error-normalized residuals, as well as the maximum
+            value.  Includes the intrinsic scatter term.
+
         """
         # Save the current gpm so that the method doesn't change it.
         sv_gpm = self.gpm.copy()

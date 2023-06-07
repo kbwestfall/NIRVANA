@@ -12,11 +12,13 @@ import numpy as np
 from scipy import sparse
 from scipy import linalg
 from astropy.stats import sigma_clip
-import matplotlib.pyplot as plt
+from matplotlib import pyplot, rc, patches, ticker, colors
 import warnings
 
 from .bin2d import Bin2D
-from .util import gaussian_deviates
+from .util import gaussian_deviates, growth_lim
+from ..util import plot
+from ..models import asymmetry
 from ..models.beam import construct_beam, ConvolveFFTW, smear
 from ..models.geometry import projected_polar
 
@@ -980,6 +982,359 @@ class Kinematics:
             raise ValueError('Value for sigma must be ignore, draw, or drawsqr.')
         return gaussian_deviates(ivar=self.vel_ivar, mask=self.vel_mask, covar=self.vel_covar,
                                  size=size, rng=rng) + s_ret
+
+    # TODO:
+    #   - Allow the plot to be constructed from the fits file written by
+    #     axisym_fit_data
+    def asymmetry_plot(self, galmeta=None, xc=0., yc=0., pa=0., vsys=0., fwhm=None, vel_mask=None,
+                       sig_mask=None, ofile=None):
+        """
+        Construct a plot showing reflective asymmetries in the velocity and
+        velocity dispersion.
+
+        Args:
+            galmeta (:class:`~nirvana.data.meta.GlobalPar`, optional):
+                Object with metadata for the galaxy to be fit.
+            xc (:obj:`float`, optional):
+                Kinematic center relative to :attr:`grid_x`.
+            yc (:obj:`float`, optional):
+                Kinematic center relative to :attr:`grid_y`.
+            pa (:obj:`float`, optional):
+                Position angle of the major axis, from N through E in degrees.
+            vsys (:obj:`float`, optional):
+                Systemic velocity.
+            fwhm (:obj:`float`, optional):
+                FWHM of the PSF in arcsec.  If provided, this is used to add the
+                nominal beam size to the map plots.
+            vel_mask (`numpy.ndarray`_, optional):
+                A boolean bad-value mask (True is bad) for the velocity
+                measurements to use *instead* of the internal :attr:`vel_mask`.
+                If None, the internal :attr:`vel_mask` is used.  If provided,
+                the shape must be the same as :attr:`vel`.
+            sig_mask (`numpy.ndarray`_, optional):
+                A boolean bad-value mask (True is bad) for the velocity
+                dispersion measurements to use *instead* of the internal
+                :attr:`sig_mask`.  If None, the internal :attr:`sig_mask` is
+                used.  If provided, the shape must be the same as :attr:`sig`.
+                Ignored if :attr:`sig` is None.
+            ofile (:obj:`str`, optional):
+                Output filename for the plot.  If None, the plot is shown to the
+                screen.
+        """
+        # Check the input
+        if vel_mask is not None and vel_mask.shape != self.vel.shape:
+            raise ValueError(f'Provided vel_mask has incorrect shape; found {vel_mask.shape}, '
+                             f'expected {self.vel.shape}.')
+        if self.sig is not None and sig_mask is not None and sig_mask.shape != self.sig.shape:
+            raise ValueError(f'Provided sig_mask has incorrect shape; found {sig_mask.shape}, '
+                             f'expected {self.sig.shape}.')
+
+        # Change the style
+        logformatter = plot.get_logformatter()
+        rc('font', size=8)
+
+        # Get the velocity maps
+        vel = self.remap('vel', mask=self.vel_mask if vel_mask is None else vel_mask)
+        vel_x, vel_y, vel_xy = asymmetry.onsky_asymmetry_maps(self.grid_x-xc, self.grid_y-yc,
+                                                              vel.data-vsys, pa=pa, mask=vel.mask,
+                                                              odd=True, maxd=0.4)
+
+        # Sigma square maps
+        if self.sig is None:
+            sig, sig_x, sig_y, sig_xy = [None]*4
+        else:
+            sigsqr = self.remap('sig_phys2', mask=self.sig_mask if sig_mask is None else sig_mask)
+            sig = sigsqr/np.sqrt(np.absolute(sigsqr))
+            sig_x, sig_y, sig_xy = asymmetry.onsky_asymmetry_maps(self.grid_x-xc, self.grid_y-yc,
+                                                                  sig.data, pa=pa, mask=sig.mask,
+                                                                  maxd=0.4)
+
+        # Set the extent for the 2D maps
+        extent = [np.amax(self.grid_x), np.amin(self.grid_x),
+                  np.amin(self.grid_y), np.amax(self.grid_y)]
+        Dx = max(extent[0]-extent[1], extent[3]-extent[2]) # *1.01
+        skylim = np.array([ (extent[0]+extent[1] - Dx)/2., 0.0 ])
+        skylim[1] = skylim[0] + Dx
+
+        # Create the plot
+        w,h = pyplot.figaspect(1)
+        fig = pyplot.figure(figsize=(2*w,2*h))
+
+        #-------------------------------------------------------------------
+        # Velocity
+        vel_lim = growth_lim(vel, 0.90, 1.05, midpoint=vsys)
+        ax = plot.init_ax(fig, [0.015, 0.725, 0.24, 0.24])
+        cax = fig.add_axes([0.055, 0.97, 0.195, 0.005])
+        cax.tick_params(which='both', direction='in')
+        ax.set_xlim(skylim[::-1])
+        ax.set_ylim(skylim)
+        ax.xaxis.set_major_formatter(ticker.NullFormatter())
+        ax.yaxis.set_major_formatter(ticker.NullFormatter())
+        if fwhm is not None:
+            ax.add_patch(patches.Circle((0.1, 0.1), fwhm/np.diff(skylim)[0]/2,
+                         transform=ax.transAxes, facecolor='0.7', edgecolor='k', zorder=4))
+        im = ax.imshow(vel, origin='lower', interpolation='nearest', cmap='RdBu_r',
+                       extent=extent, vmin=vel_lim[0], vmax=vel_lim[1], zorder=4)
+        # Mark the fitted dynamical center and the position angle
+        ax.scatter(xc, yc, marker='+', color='k', s=40, lw=1, zorder=5)
+        ax.arrow(xc, yc, skylim[1]*0.7*np.cos(np.radians(90-pa)),
+                 skylim[1]*0.7*np.sin(np.radians(90-pa)), zorder=5, length_includes_head=True,
+                 head_length=2., head_width=1.0, facecolor='k', edgecolor='k')
+        cb = fig.colorbar(im, cax=cax, orientation='horizontal')
+        cb.ax.xaxis.set_ticks_position('top')
+        cb.ax.xaxis.set_label_position('top')
+        cax.text(-0.05, 1.1, 'V', ha='right', va='center', transform=cax.transAxes)
+
+
+        #-------------------------------------------------------------------
+        # Velocity Reflection Asymmetries
+        v_res_lim = growth_lim(np.ma.concatenate((vel_x, vel_y, vel_xy)), 0.90, 1.15, midpoint=0.0)
+
+        ax = plot.init_ax(fig, [0.260, 0.725, 0.24, 0.24])
+        cax = fig.add_axes([0.300, 0.97, 0.195, 0.005])
+        cax.tick_params(which='both', direction='in')
+        ax.set_xlim(skylim[::-1])
+        ax.set_ylim(skylim)
+        ax.xaxis.set_major_formatter(ticker.NullFormatter())
+        ax.yaxis.set_major_formatter(ticker.NullFormatter())
+        if fwhm is not None:
+            ax.add_patch(patches.Circle((0.1, 0.1), fwhm/np.diff(skylim)[0]/2,
+                         transform=ax.transAxes, facecolor='0.7', edgecolor='k', zorder=4))
+        im = ax.imshow(vel_x, origin='lower', interpolation='nearest', cmap='RdBu_r',
+                       extent=extent, vmin=v_res_lim[0], vmax=v_res_lim[1], zorder=4)
+        cb = fig.colorbar(im, cax=cax, orientation='horizontal')
+        cb.ax.xaxis.set_ticks_position('top')
+        cb.ax.xaxis.set_label_position('top')
+        cax.text(-0.05, 1.1, r'$\Delta V_x$', ha='right', va='center', transform=cax.transAxes)
+ 
+
+        ax = plot.init_ax(fig, [0.505, 0.725, 0.24, 0.24])
+        cax = fig.add_axes([0.545, 0.97, 0.195, 0.005])
+        cax.tick_params(which='both', direction='in')
+        ax.set_xlim(skylim[::-1])
+        ax.set_ylim(skylim)
+        ax.xaxis.set_major_formatter(ticker.NullFormatter())
+        ax.yaxis.set_major_formatter(ticker.NullFormatter())
+        if fwhm is not None:
+            ax.add_patch(patches.Circle((0.1, 0.1), fwhm/np.diff(skylim)[0]/2,
+                         transform=ax.transAxes, facecolor='0.7', edgecolor='k', zorder=4))
+        im = ax.imshow(vel_y, origin='lower', interpolation='nearest', cmap='RdBu_r',
+                       extent=extent, vmin=v_res_lim[0], vmax=v_res_lim[1], zorder=4)
+        cb = fig.colorbar(im, cax=cax, orientation='horizontal')
+        cb.ax.xaxis.set_ticks_position('top')
+        cb.ax.xaxis.set_label_position('top')
+        cax.text(-0.05, 1.1, r'$\Delta V_y$', ha='right', va='center', transform=cax.transAxes)
+ 
+
+        ax = plot.init_ax(fig, [0.750, 0.725, 0.24, 0.24])
+        cax = fig.add_axes([0.790, 0.97, 0.195, 0.005])
+        cax.tick_params(which='both', direction='in')
+        ax.set_xlim(skylim[::-1])
+        ax.set_ylim(skylim)
+        ax.xaxis.set_major_formatter(ticker.NullFormatter())
+        ax.yaxis.set_major_formatter(ticker.NullFormatter())
+        if fwhm is not None:
+            ax.add_patch(patches.Circle((0.1, 0.1), fwhm/np.diff(skylim)[0]/2,
+                         transform=ax.transAxes, facecolor='0.7', edgecolor='k', zorder=4))
+        im = ax.imshow(vel_xy, origin='lower', interpolation='nearest', cmap='RdBu_r',
+                       extent=extent, vmin=v_res_lim[0], vmax=v_res_lim[1], zorder=4)
+        cb = fig.colorbar(im, cax=cax, orientation='horizontal')
+        cb.ax.xaxis.set_ticks_position('top')
+        cb.ax.xaxis.set_label_position('top')
+        cax.text(-0.05, 1.1, r'$\Delta V_{xy}$', ha='right', va='center', transform=cax.transAxes)
+
+        if sig is not None:
+            #-------------------------------------------------------------------
+            # Velocity Dispersion
+            sig_lim = growth_lim(sig, 0.90, 1.05)
+
+            ax = plot.init_ax(fig, [0.015, 0.480, 0.24, 0.24])
+            cax = fig.add_axes([0.055, 0.47, 0.195, 0.005])
+            cax.tick_params(which='both', direction='in')
+            ax.set_xlim(skylim[::-1])
+            ax.set_ylim(skylim)
+            ax.xaxis.set_major_formatter(ticker.NullFormatter())
+            ax.yaxis.set_major_formatter(ticker.NullFormatter())
+            if fwhm is not None:
+                ax.add_patch(patches.Circle((0.1, 0.1), fwhm/np.diff(skylim)[0]/2,
+                            transform=ax.transAxes, facecolor='0.7', edgecolor='k', zorder=4))
+            im = ax.imshow(sig, origin='lower', interpolation='nearest', cmap='viridis',
+                        extent=extent, vmin=sig_lim[0], vmax=sig_lim[1], zorder=4)
+            # Mark the fitted dynamical center
+            ax.scatter(xc, yc, marker='+', color='k', s=40, lw=1, zorder=5)
+            cb = fig.colorbar(im, cax=cax, orientation='horizontal')
+            cax.text(-0.05, 0.1, r'$\sigma$', ha='right', va='center', transform=cax.transAxes)
+
+            #-------------------------------------------------------------------
+            # Velocity Dispersion Reflection Asymmetries
+            s_res_lim = growth_lim(np.ma.concatenate((sig_x, sig_y, sig_xy)), 0.90, 1.15,
+                                   midpoint=0.0)
+
+            ax = plot.init_ax(fig, [0.260, 0.480, 0.24, 0.24])
+            cax = fig.add_axes([0.300, 0.47, 0.195, 0.005])
+            cax.tick_params(which='both', direction='in')
+            ax.set_xlim(skylim[::-1])
+            ax.set_ylim(skylim)
+            ax.xaxis.set_major_formatter(ticker.NullFormatter())
+            ax.yaxis.set_major_formatter(ticker.NullFormatter())
+            if fwhm is not None:
+                ax.add_patch(patches.Circle((0.1, 0.1), fwhm/np.diff(skylim)[0]/2,
+                            transform=ax.transAxes, facecolor='0.7', edgecolor='k', zorder=4))
+            im = ax.imshow(sig_x, origin='lower', interpolation='nearest', cmap='RdBu_r',
+                           extent=extent, vmin=s_res_lim[0], vmax=s_res_lim[1], zorder=4)
+            cb = fig.colorbar(im, cax=cax, orientation='horizontal')
+            cax.text(-0.05, 0.1, r'$\Delta \sigma_x$', ha='right', va='center',
+                     transform=cax.transAxes)
+ 
+
+            ax = plot.init_ax(fig, [0.505, 0.480, 0.24, 0.24])
+            cax = fig.add_axes([0.545, 0.47, 0.195, 0.005])
+            cax.tick_params(which='both', direction='in')
+            ax.set_xlim(skylim[::-1])
+            ax.set_ylim(skylim)
+            ax.xaxis.set_major_formatter(ticker.NullFormatter())
+            ax.yaxis.set_major_formatter(ticker.NullFormatter())
+            if fwhm is not None:
+                ax.add_patch(patches.Circle((0.1, 0.1), fwhm/np.diff(skylim)[0]/2,
+                            transform=ax.transAxes, facecolor='0.7', edgecolor='k', zorder=4))
+            im = ax.imshow(sig_y, origin='lower', interpolation='nearest', cmap='RdBu_r',
+                           extent=extent, vmin=s_res_lim[0], vmax=s_res_lim[1], zorder=4)
+            cb = fig.colorbar(im, cax=cax, orientation='horizontal')
+            cax.text(-0.05, 0.1, r'$\Delta \sigma_y$', ha='right', va='center',
+                     transform=cax.transAxes)
+ 
+
+            ax = plot.init_ax(fig, [0.750, 0.480, 0.24, 0.24])
+            cax = fig.add_axes([0.790, 0.47, 0.195, 0.005])
+            cax.tick_params(which='both', direction='in')
+            ax.set_xlim(skylim[::-1])
+            ax.set_ylim(skylim)
+            ax.xaxis.set_major_formatter(ticker.NullFormatter())
+            ax.yaxis.set_major_formatter(ticker.NullFormatter())
+            if fwhm is not None:
+                ax.add_patch(patches.Circle((0.1, 0.1), fwhm/np.diff(skylim)[0]/2,
+                            transform=ax.transAxes, facecolor='0.7', edgecolor='k', zorder=4))
+            im = ax.imshow(sig_xy, origin='lower', interpolation='nearest', cmap='RdBu_r',
+                           extent=extent, vmin=s_res_lim[0], vmax=s_res_lim[1], zorder=4)
+            cb = fig.colorbar(im, cax=cax, orientation='horizontal')
+            cax.text(-0.05, 0.1, r'$\Delta \sigma_{xy}$', ha='right', va='center',
+                     transform=cax.transAxes)
+ 
+        #-------------------------------------------------------------------
+        # SDSS image
+        ax = fig.add_axes([0.03, 0.08, 0.28, 0.28])
+        if self.image is not None:
+            ax.imshow(self.image)
+        else:
+            ax.text(0.5, 0.5, 'No Image', ha='center', va='center', transform=ax.transAxes,
+                    fontsize=20)
+
+        ax.text(0.5, 1.05, 'SDSS gri Composite', ha='center', va='center', transform=ax.transAxes,
+                fontsize=10)
+        ax.axes.get_xaxis().set_visible(False)
+        ax.axes.get_yaxis().set_visible(False)
+
+        if galmeta is not None:
+            ax.text(0.00, -0.05, 'MaNGA ID:', ha='left', va='center', transform=ax.transAxes,
+                    fontsize=10)
+            ax.text(1.01, -0.05, f'{galmeta.mangaid}', ha='right', va='center',
+                    transform=ax.transAxes, fontsize=10)
+            # Observation
+            ax.text(0.00, -0.13, 'Observation:', ha='left', va='center', transform=ax.transAxes,
+                    fontsize=10)
+            ax.text(1.01, -0.13, f'{galmeta.plate}-{galmeta.ifu}', ha='right', va='center',
+                    transform=ax.transAxes, fontsize=10)
+
+        rc('font', size=10)
+
+        # Velocity asymmetry growth
+        fid_grw = np.array([50., 80., 90.])
+        abs_vel_x = np.absolute(vel_x.compressed())
+        n_vel_x = abs_vel_x.size
+        grw_vel_x = 1-(np.arange(n_vel_x)+1)/n_vel_x
+        fid_vel_x = np.percentile(abs_vel_x, fid_grw)
+
+        abs_vel_y = np.absolute(vel_y.compressed())
+        n_vel_y = abs_vel_y.size
+        grw_vel_y = 1-(np.arange(n_vel_y)+1)/n_vel_y
+        fid_vel_y = np.percentile(abs_vel_y, fid_grw)
+
+        abs_vel_xy = np.absolute(vel_xy.compressed())
+        n_vel_xy = abs_vel_xy.size
+        grw_vel_xy = 1-(np.arange(n_vel_xy)+1)/n_vel_xy
+        fid_vel_xy = np.percentile(abs_vel_xy, fid_grw)
+
+        ax = plot.init_ax(fig, [0.38, 0.06, 0.29, 0.36], majlen=6, minlen=3, facecolor='0.95',
+                          gridcolor='0.9')
+        ax.set_xlim([0., np.amax([fid_vel_x[-1], fid_vel_y[-1], fid_vel_xy[-1]])*1.2])
+        ax.set_ylim([3e-2, 1.01])
+        ax.set_yscale('log')
+        ax.yaxis.set_major_formatter(logformatter)
+
+        ax.step(np.sort(abs_vel_x), grw_vel_x, color='C0', where='post', zorder=3)
+        ax.scatter(fid_vel_x, 1-fid_grw/100, marker='.', s=200, color='C0', zorder=4)
+        ax.step(np.sort(abs_vel_y), grw_vel_y, color='C1', where='post', zorder=3)
+        ax.scatter(fid_vel_y, 1-fid_grw/100, marker='.', s=200, color='C1', zorder=4)
+        ax.step(np.sort(abs_vel_xy), grw_vel_xy, color='C2', where='post', zorder=3)
+        ax.scatter(fid_vel_xy, 1-fid_grw/100, marker='.', s=200, color='C2', zorder=4)
+
+        ax.text(-0.15, 0.5, '1-Growth', ha='center', va='center', transform=ax.transAxes,
+                rotation='vertical')
+        ax.text(0.5, -0.08, r'$\Delta V$ [km/s]', ha='center', va='center', transform=ax.transAxes)
+        ax.text(0.85, 0.9, r'$\Delta V_x$', ha='left', va='center', transform=ax.transAxes,
+                color='C0', fontsize=12)
+        ax.text(0.85, 0.82, r'$\Delta V_y$', ha='left', va='center', transform=ax.transAxes,
+                color='C1', fontsize=12)
+        ax.text(0.85, 0.74, r'$\Delta V_{xy}$', ha='left', va='center', transform=ax.transAxes,
+                color='C2', fontsize=12)
+
+        # Velocity dispersion asymmetry growth
+        abs_sig_x = np.absolute(sig_x.compressed())
+        n_sig_x = abs_sig_x.size
+        grw_sig_x = 1-(np.arange(n_sig_x)+1)/n_sig_x
+        fid_sig_x = np.percentile(abs_sig_x, fid_grw)
+
+        abs_sig_y = np.absolute(sig_y.compressed())
+        n_sig_y = abs_sig_y.size
+        grw_sig_y = 1-(np.arange(n_sig_y)+1)/n_sig_y
+        fid_sig_y = np.percentile(abs_sig_y, fid_grw)
+
+        abs_sig_xy = np.absolute(sig_xy.compressed())
+        n_sig_xy = abs_sig_xy.size
+        grw_sig_xy = 1-(np.arange(n_sig_xy)+1)/n_sig_xy
+        fid_sig_xy = np.percentile(abs_sig_xy, fid_grw)
+
+        ax = plot.init_ax(fig, [0.68, 0.06, 0.29, 0.36], majlen=6, minlen=3, facecolor='0.95',
+                          gridcolor='0.9')
+        ax.set_xlim([0., np.amax([fid_sig_x[-1], fid_sig_y[-1], fid_sig_xy[-1]])*1.2])
+        ax.set_ylim([3e-2, 1.01])
+        ax.set_yscale('log')
+        ax.yaxis.set_major_formatter(ticker.NullFormatter())
+
+        ax.step(np.sort(abs_sig_x), grw_sig_x, color='C0', where='post', zorder=3)
+        ax.scatter(fid_sig_x, 1-fid_grw/100, marker='.', s=200, color='C0', zorder=4)
+        ax.step(np.sort(abs_sig_y), grw_sig_y, color='C1', where='post', zorder=3)
+        ax.scatter(fid_sig_y, 1-fid_grw/100, marker='.', s=200, color='C1', zorder=4)
+        ax.step(np.sort(abs_sig_xy), grw_sig_xy, color='C2', where='post', zorder=3)
+        ax.scatter(fid_sig_xy, 1-fid_grw/100, marker='.', s=200, color='C2', zorder=4)
+
+        ax.text(0.5, -0.08, r'$\Delta \sigma$ [km/s]', ha='center', va='center', transform=ax.transAxes)
+        ax.text(0.85, 0.9, r'$\Delta \sigma_x$', ha='left', va='center', transform=ax.transAxes,
+                color='C0', fontsize=12)
+        ax.text(0.85, 0.82, r'$\Delta \sigma_y$', ha='left', va='center', transform=ax.transAxes,
+                color='C1', fontsize=12)
+        ax.text(0.85, 0.74, r'$\Delta \sigma_{xy}$', ha='left', va='center', transform=ax.transAxes,
+                color='C2', fontsize=12)
+
+        if ofile is None:
+            pyplot.show()
+        else:
+            fig.canvas.print_figure(ofile, bbox_inches='tight')
+        fig.clear()
+        pyplot.close(fig)
+
+        # Reset to default style
+        pyplot.rcdefaults()
 
 
 
