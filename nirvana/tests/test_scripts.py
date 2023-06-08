@@ -39,7 +39,6 @@ def test_manga_axisym():
 
     shutil.rmtree(odir)
 
-#test_manga_axisym()
 
 @requires_remote
 def test_manga_asymdrift():
@@ -61,10 +60,11 @@ def test_manga_asymdrift():
     assert os.path.isfile(main_output_file), 'Output file not created.'
 
     with fits.open(main_output_file) as hdu:
-        assert len(hdu) == 47, 'Data model changed'
+        assert len(hdu) == 66, 'Data model changed'
         assert hdu['GAS_FITMETA'].data['RCHI2'] < 1.1, 'Fit dramatically changed'
         assert hdu['STR_FITMETA'].data['RCHI2'] < 1.1, 'Fit dramatically changed'
         assert hdu[0].header['RCHI2'] < 1.1, 'Fit dramatically changed'
 
     shutil.rmtree(odir)
+
 
