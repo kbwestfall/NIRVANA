@@ -51,8 +51,8 @@
  - Add a plot that shows the different masking steps
  - For MaNGA:
     - Improve download functionality
-    - Change to using redshift in DAPall file, instead of DRPall file to include
-      corrections made in the former (see the mangadap redshift fix file)
+    - Change to using redshift in DAPall file, instead of DRPall file, so as to
+      include known corrections (see the mangadap redshift fix file)
     - Include targeting and data-quality bits and row indices in DRPall/DAPall
       files in the main Kinematics classes
     - Enable consolidated output databases for both independent fits and
