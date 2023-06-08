@@ -30,9 +30,17 @@
    model for comparison with the data.  The new approach should nominally be
    closer to the effects of binning the spectra and then fitting the kinematics.
  - Added method to compute Fisher Information Matrix for axisymmetric fits.
- - Added new asymmetry map calculations
- - Added asymmetric drift fitting
-
+ - Added new asymmetry map calculations and plots
+ - Begins development of a `BisymmetricDisk` class the mimics the
+   `AxisymmetricDisk` class.
+ - Consolidate common functionality between `AxisymmetricDisk` and
+   `BisymmetricDisk` into a common parent class called `ThinDisk`.
+ - Construct radial profiles of deprojected kinematics
+ - Save radial profiles along the major and minor axes of both the tangential
+   speed and the velocity dispersion
+ - Fit rejection iterations moved to common parent class, `ThinDisk`.
+ - Added simultaneous fitting of gas and stellar kinematics, particularly useful
+   for measuring asymmetric drift
 
 0.1.0
 -----
