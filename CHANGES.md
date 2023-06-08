@@ -39,8 +39,26 @@
  - Save radial profiles along the major and minor axes of both the tangential
    speed and the velocity dispersion
  - Fit rejection iterations moved to common parent class, `ThinDisk`.
- - Added simultaneous fitting of gas and stellar kinematics, particularly useful
-   for measuring asymmetric drift
+ - Added `MultiTracerDisk` class that enables one to simultaneously fit multiple
+   kinematic tracers of the same disk.  This is currently only used for
+   simultaneous fitting of gas and stellar kinematics, particularly useful for
+   measuring asymmetric drift
+ - Improve asymmetry measures and plots
+ - Construct radial profiles with and without beam-smearing "corrections"
+ - Change main axisymmetric fit diagnostic plots to include effects of
+   beam-smearing on velocity and velocity dispersion fields (instead of showing
+   the intrinsic fields)
+ - Add a plot that shows the different masking steps
+ - For MaNGA:
+    - Improve download functionality
+    - Change to using redshift in DAPall file, instead of DRPall file, so as to
+      include known corrections (see the mangadap redshift fix file)
+    - Include targeting and data-quality bits and row indices in DRPall/DAPall
+      files in the main Kinematics classes
+    - Enable consolidated output databases for both independent fits and
+      combined (stars+gas) fits
+    - Fix download_test_data.py script to download public data from DR17
+ - Fix bugs in 1D piecwise functions when sampling on multidimensional arrays.
 
 0.1.0
 -----

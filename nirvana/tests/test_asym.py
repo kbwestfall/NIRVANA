@@ -285,7 +285,7 @@ def test_asymmetry_plot():
             = manga.manga_files_from_plateifu(plate, ifu, cube_path=data_root,
                                               image_path=data_root, maps_path=data_root)
 
-    galmeta = manga.MaNGAGlobalPar(plate, ifu, drpall_path=data_root)
+    galmeta = manga.MaNGAGlobalPar(plate, ifu, drpall_path=data_root, dapall_path=data_root)
     kin = manga.MaNGAGasKinematics(maps_file, cube_file=cube_file, image_file=image_file)
     kin.asymmetry_plot(galmeta=galmeta, xc=xc, yc=yc, pa=pa, vsys=vsys, fwhm=galmeta.psf_fwhm[1],
                        ofile=ofile)

@@ -483,13 +483,9 @@ class MultiTracerDisk:
         niter = 0
         while niter < maxiter:
             # Run the optimization
-#            try:
             result = optimize.least_squares(self.fom, p, x_scale='jac', method='trf',
                                             xtol=1e-12, bounds=(_lb[self.free], _ub[self.free]), 
                                             verbose=max(verbose,0), **jac_kwargs)
-#            except Exception as e:
-#                embed()
-#                exit()
             # Attempt to calculate the errors
             try:
                 pe = np.sqrt(np.diag(cov_err(result.jac)))
@@ -873,10 +869,6 @@ def asymdrift_fit_plot(galmeta, kin, disk, par=None, par_err=None, fix=None, ofi
 
     sig_map_lim = growth_lim(np.ma.log10(np.ma.append(sd_map, sd_mod_map)).compressed(), 0.70, 1.05)
     sig_map_lim = atleast_one_decade(np.power(10., sig_map_lim))
-
-#    ados_lim = np.power(10.0, growth_lim(np.ma.log10(np.ma.append(ados_map, adosmod_map).compressed(),
-#                                        0.80, 1.05)))
-#    ados_lim = atleast_one_decade(sig_lim)
 
     ados_lim = growth_lim(np.ma.append(ados_map, ados_mod_map).compressed(), 0.80, 1.05)
 

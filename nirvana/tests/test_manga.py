@@ -11,7 +11,7 @@ from astropy import convolution
 from nirvana.data import manga
 from nirvana.data import util
 from nirvana.tests.util import remote_data_file, requires_remote
-from nirvana.tests.util import drp_test_version, dap_test_daptype
+from nirvana.tests.util import drp_test_version, dap_test_version, dap_test_daptype
 
 # TODO: Add a test for remapping
 
@@ -122,7 +122,8 @@ def test_inv_covar():
 @requires_remote
 def test_meta():
     drpall_file = remote_data_file(f'drpall-{drp_test_version}.fits')
-    meta = manga.MaNGAGlobalPar(8138, 12704, drpall_file=drpall_file)
+    dapall_file = remote_data_file(f'dapall-{drp_test_version}-{dap_test_version}.fits')
+    meta = manga.MaNGAGlobalPar(8138, 12704, drpall_file=drpall_file, dapall_file=dapall_file)
 
 
 def test_versions():
