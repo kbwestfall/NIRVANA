@@ -128,10 +128,8 @@ def test_deconvolve():
     # Get the convolved image
     c = cnvfftw(synth, synth)
     # Deconvolve
-    d = beam.deconvolve(c, synth, 20, cnvfftw=cnvfftw)
-    # Convolve the deconvolved image with the kernel to compare with original image
-    test_c = cnvfftw(d, synth)
-    assert numpy.sum((c-test_c)**2) < 1e-9, 'Deconvolution performance worsened.'
+    d, m, dc = beam.deconvolve(c, synth, 20, cnvfftw=cnvfftw, return_model=True)
+    assert numpy.sum((c-dc)**2) < 1e-9, 'Deconvolution performance worsened.'
 
 
 @requires_remote
