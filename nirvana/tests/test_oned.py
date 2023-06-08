@@ -78,6 +78,36 @@ def test_step_deriv():
     assert numpy.array_equal(dy, _dy[srt]), 'sorting of the input coordinates should not matter'
 
 
+def test_step_2d():
+    n = 10
+    edges = numpy.arange(n, dtype=float)
+
+    vrot = 200.
+    hrot = 3.
+    steps = vrot*numpy.tanh(edges/hrot)
+
+    f = oned.StepFunction(edges, par=steps)
+
+    shape = (31,31)
+    x = numpy.arange(shape[1]).astype(float) - shape[1]//2
+    y = numpy.arange(shape[0]).astype(float) - shape[0]//2
+    X, Y = numpy.meshgrid(x, y)
+
+    r = numpy.sqrt(X**2 + Y**2)
+    v = f.sample(r)
+    assert v.shape == r.shape, 'shape changed'
+
+    _v, _dv = f.deriv_sample(r)
+    assert numpy.array_equal(v, _v), 'sample and deriv_sample sample differently'
+    assert _dv.ndim == 3, 'deriv array has wrong dimensionality'
+
+    ddr = f.ddx(r)
+    assert ddr.shape == r.shape, 'ddr shape changed'
+
+    d2dr2 = f.d2dx2(r)
+    assert d2dr2.shape == r.shape, 'd2dr2 shape changed'
+
+
 def test_lin():
     n = 10
     edges = numpy.arange(n, dtype=float)+1

@@ -58,6 +58,7 @@
     - Enable consolidated output databases for both independent fits and
       combined (stars+gas) fits
     - Fix download_test_data.py script to download public data from DR17
+ - Fix bugs in 1D piecwise functions when sampling on multidimensional arrays.
 
 0.1.0
 -----

@@ -46,7 +46,7 @@ class Func1D:
         raise NotImplementedError('Function second derivative not defined for {0}!'.format(
                                     self.__class__.__name__))
 
-
+# TODO: Create a parent class for both StepFunction and PiecewiseLinear?
 class StepFunction(Func1D):
     """
     Defines a step function.
@@ -158,11 +158,12 @@ class StepFunction(Func1D):
         """
         if par is not None:
             self._set_par(par)
-        f = np.full(len(x), self.par[0], dtype=float)
-        i2 = self._sort(x, check)   # 1-indexed step associated with each x
+        _x = np.asarray(x)
+        f = np.full(_x.size, self.par[0], dtype=float)
+        i2 = self._sort(_x.flat, check)   # 1-indexed step associated with each x
         indx = (i2 > 0)
         f[indx] = self.par[i2[indx]-1]
-        return f
+        return f.reshape(_x.shape)
 
     def deriv_sample(self, x, par=None, check=False):
         """
@@ -191,30 +192,32 @@ class StepFunction(Func1D):
         """
         if par is not None:
             self._set_par(par)
-        f = np.full(len(x), self.par[0], dtype=float)
-        df = np.zeros((len(x), self.np), dtype=float)
-        i2 = self._sort(x, check)   # 1-indexed step associated with each x
+        _x = np.asarray(x)
+        f = np.full(_x.size, self.par[0], dtype=float)
+        df = np.zeros((_x.size, self.np), dtype=float)
+        i2 = self._sort(_x.flat, check)   # 1-indexed step associated with each x
         indx = (i2 > 0)
         f[indx] = self.par[i2[indx]-1]
-        df[np.where(indx)[0],i2[indx]-1] = 1.
+        if any(indx):
+            df[np.where(indx)[0],i2[indx]-1] = 1.
         indx = i2 == 0
-        df[np.where(indx)[0],np.array([0]*np.sum(indx))] = 1.
-        return f, df
-
+        if any(indx):
+            df[np.where(indx)[0],np.array([0]*np.sum(indx))] = 1.
+        return f.reshape(_x.shape), df.reshape(*_x.shape, -1)
 
     def ddx(self, x, par=None, check=False):
         """
         Sample the derivative of the step function. See
         :func:`sample` for the argument descriptions.
         """
-        return np.zeros(len(x), dtype=float)
+        return np.zeros(np.asarray(x).shape, dtype=float)
 
     def d2dx2(self, x, par=None, check=False):
         """
         Sample the second derivative of the step function. See
         :func:`sample` for the argument descriptions.
         """
-        return np.zeros(len(x), dtype=float)
+        return np.zeros(np.asarray(x).shape, dtype=float)
 
 
 class PiecewiseLinear(Func1D):
