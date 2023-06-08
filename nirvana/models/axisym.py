@@ -1043,10 +1043,6 @@ def axisym_fit_data(galmeta, kin, p0, lb, ub, disk, vmask, smask, ofile=None):
     metadata['VISCT'] = scat.sig
     metadata['VCHI2'] = np.sum(vfom**2)
 
-#    metadata['VASYM'] = np.array([np.percentile(np.absolute(a[np.logical_not(m)]),
-#                                                [50., 80., 90.])
-#                                        if not np.all(m) else np.array([-1., -1., -1.])
-#                                    for a, m in zip(vel_asym, vel_asym_mask)])
     metadata['VASYM'] = np.vstack((fid_vel_x, fid_vel_y, fid_vel_xy))
     metadata['VASYM_ELL_R'] = vel_ell_r
     metadata['VASYM_ELL'] = np.vstack((ell_fid_vel_x, ell_fid_vel_y, ell_fid_vel_xy))
@@ -1071,11 +1067,6 @@ def axisym_fit_data(galmeta, kin, p0, lb, ub, disk, vmask, smask, ofile=None):
 
         metadata['SISCT'] = scat.sig
         metadata['SCHI2'] = np.sum(sfom**2)
-
-#        metadata['SASYM'] = np.array([np.percentile(np.absolute(a[np.logical_not(m)]),
-#                                                    [50., 80., 90.])
-#                                            if not np.all(m) else np.array([-1., -1., -1.])
-#                                        for a, m in zip(sig_asym, sig_asym_mask)])
 
         metadata['SASYM'] = np.vstack((fid_sig_x, fid_sig_y, fid_sig_xy))
         metadata['SASYM_ELL_R'] = sig_ell_r
@@ -1121,7 +1112,6 @@ def axisym_fit_data(galmeta, kin, p0, lb, ub, disk, vmask, smask, ofile=None):
         psfhdr['PSFNAME'] = (kin.psf_name, 'Original PSF name, if known')
     #   - Table header
     tblhdr = prihdr.copy()
-#    tblhdr['PHOT_KEY'] = 'none' if galmeta.phot_key is None else galmeta.phot_key
     disk.pbm.to_header(tblhdr)
 
     hdus = [fits.PrimaryHDU(header=prihdr),
@@ -1718,48 +1708,6 @@ def axisym_fit_plot(galmeta, kin, disk, par=None, par_err=None, fix=None, ofile=
         cb = fig.colorbar(im, cax=cax, orientation='horizontal', format=logformatter)
         cax.text(-0.05, 0.1, r'$\sigma_{\rm b}$', ha='right', va='center', transform=cax.transAxes)
 
-#    #-------------------------------------------------------------------
-#    # Intrinsic Velocity Model
-#    ax = plot.init_ax(fig, [0.800, 0.305, 0.19, 0.19])
-#    cax = fig.add_axes([0.830, 0.50, 0.15, 0.005])
-#    cax.tick_params(which='both', direction='in')
-#    ax.set_xlim(skylim[::-1])
-#    ax.set_ylim(skylim)
-#    ax.xaxis.set_major_formatter(ticker.NullFormatter())
-#    ax.yaxis.set_major_formatter(ticker.NullFormatter())
-#    im = ax.imshow(vmod_intr_map, origin='lower', interpolation='nearest', cmap='RdBu_r',
-#                   extent=extent, vmin=vel_lim[0], vmax=vel_lim[1], zorder=4)
-#    # Mark the fitted dynamical center
-#    ax.scatter(disk.par[0], disk.par[1], marker='+', color='k', s=40, lw=1, zorder=5)
-#    cb = fig.colorbar(im, cax=cax, orientation='horizontal')
-#    cb.ax.xaxis.set_ticks_position('top')
-#    cb.ax.xaxis.set_label_position('top')
-#    cax.text(-0.05, 1.1, 'V', ha='right', va='center', transform=cax.transAxes)
-#
-#    ax.text(0.5, 1.2, 'Intrinsic Model', ha='center', va='center', transform=ax.transAxes,
-#            fontsize=10)
-#
-#    #-------------------------------------------------------------------
-#    # Intrinsic Velocity Dispersion
-#    ax = plot.init_ax(fig, [0.800, 0.110, 0.19, 0.19])
-#    ax.set_xlim(skylim[::-1])
-#    ax.set_ylim(skylim)
-#    ax.xaxis.set_major_formatter(ticker.NullFormatter())
-#    ax.yaxis.set_major_formatter(ticker.NullFormatter())
-#    # Mark the fitted dynamical center
-#    ax.scatter(disk.par[0], disk.par[1], marker='+', color='k', s=40, lw=1, zorder=5)
-#    if disk.dc is None:
-#        ax.text(0.5, 0.3, 'No velocity dispersion model', ha='center', va='center',
-#                transform=ax.transAxes)
-#    else:
-#        im = ax.imshow(smod_intr_map, origin='lower', interpolation='nearest', cmap='viridis',
-#                       extent=extent, norm=colors.LogNorm(vmin=sig_lim[0], vmax=sig_lim[1]),
-#                       zorder=4)
-#        cax = fig.add_axes([0.830, 0.10, 0.15, 0.005])
-#        cax.tick_params(which='both', direction='in')
-#        cb = fig.colorbar(im, cax=cax, orientation='horizontal', format=logformatter)
-#        cax.text(-0.05, 0.1, r'$\sigma$', ha='right', va='center', transform=cax.transAxes)
-
     #-------------------------------------------------------------------
     # Annotate with the intrinsic scatter included
     # Reduced chi-square
@@ -1948,7 +1896,6 @@ def axisym_fit_plot(galmeta, kin, disk, par=None, par_err=None, fix=None, ofile=
         ax.xaxis.set_major_formatter(ticker.NullFormatter())
 
     indx = vrot_nbin > 0
-#    ax.scatter(vrot_r, vrot, marker='.', color='k', s=30, lw=0, alpha=0.6, zorder=1)
     app_indx = (vrot_th > np.pi/2) & (vrot_th < 3*np.pi/2)
     ax.scatter(vrot_r[app_indx], vrot[app_indx], marker='.', color='C0', s=30, lw=0, alpha=0.6, zorder=2)
     rec_indx = (vrot_th < np.pi/2) | (vrot_th > 3*np.pi/2)
@@ -2319,8 +2266,6 @@ def axisym_fit_plot_masks(galmeta, kin, disk, vel_mask, sig_mask, ofile=None):
 
     ax = plot.init_ax(fig, [0.410, 0.783, 0.19, 0.19])
     cax = fig.add_axes([0.440, 0.978, 0.15, 0.005])
-#    ax = plot.init_ax(fig, [0.215, 0.580, 0.19, 0.19])
-#    cax = fig.add_axes([0.245, 0.57, 0.15, 0.005])
     cax.tick_params(which='both', direction='in')
     ax.set_xlim(skylim[::-1])
     ax.set_ylim(skylim)
@@ -2728,7 +2673,6 @@ def axisym_iter_fit(galmeta, kin, rctype='HyperbolicTangent', dctype='Exponentia
     disk_par_names = disk.par_names()
     indx = np.less(p0, lb)
     if np.any(indx):
-#        raise ValueError('Parameter lower bounds cannot accommodate initial guess value!')
         warnings.warn('Adjusting parameters below the lower bound!')
         for i in np.where(indx)[0]:
             _p0 = p0[i]
@@ -2741,7 +2685,6 @@ def axisym_iter_fit(galmeta, kin, rctype='HyperbolicTangent', dctype='Exponentia
             _p0 = p0[i]
             p0[i] = ub[i]/1.01
             print(f'{disk_par_names[i]:>20} {_p0:20.3f} {p0[i]:20.3f}')
-#        raise ValueError('Parameter upper bounds cannot accommodate initial guess value!')
 
     #---------------------------------------------------------------------------
     # Setup the masks
