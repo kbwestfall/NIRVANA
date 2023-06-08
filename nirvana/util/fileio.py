@@ -97,26 +97,42 @@ def rec_to_fits_col_dim(rec_element):
     return None if len(rec_element[0].shape) <= 1 else str(rec_element[0].shape[::-1])
 
 
-def compress_file(ifile, overwrite=False):
+def compress_file(ifile, overwrite=False, rm_original=False):
     """
-    Compress a file using gzip.  The output file has the same name as
-    the input file with '.gz' appended.
+    Compress a file using gzip.
 
-    Any existing file will be overwritten if overwrite is true.
+    The function creates *a new file* with the same name as the input file,
+    except that ``'.gz'`` is appended.  The original file can be removed using
+    ``rm_original``.
 
-    An error is raised if the input file name already has '.gz' appended
-    to the end.
+    Args:
+        ifile (:obj:`str`):
+            Output file to write.  Should *not* aleady have a '.gz' suffix.
+        overwrite (:obj:`bool`, optional):
+            Overwrite any existing file.
+        rm_original (:obj:`bool`, optional):
+            Remove the original (uncompressed) file.
+
+    Raises:
+        ValueError:
+            Raised if the file name already has the suffix ``'.gz'``.
+        FileExistsError:
+            Raised if the compressed file already exists and ``overwrite`` is
+            False.
     """
     if ifile.split('.')[-1] == 'gz':
         raise ValueError(f'{ifile} appears to already have been compressed!')
 
-    ofile = f'{ifile}.gz'
+    ofile = '{0}.gz'.format(ifile)
     if os.path.isfile(ofile) and not overwrite:
         raise FileExistsError(f'File already exists: {ofile}.\nTo overwrite, set overwrite=True.')
 
     with open(ifile, 'rb') as f_in:
         with gzip.open(ofile, 'wb') as f_out:
             shutil.copyfileobj(f_in, f_out)
+
+    if rm_original:
+        os.remove(ifile)
 
 
 def create_symlink(ofile, symlink_dir, relative_symlink=True, overwrite=False, quiet=False):
@@ -152,10 +168,10 @@ def initialize_primary_header(galmeta=None):
     if galmeta is not None:
         hdr['MANGADR'] = (galmeta.dr, 'MaNGA Data Release')
         hdr['MANGAID'] = (galmeta.mangaid, 'MaNGA ID number')
-        hdr['PLATEIFU'] = (f'{galmeta.plate}-{galmeta.ifu}', 'MaNGA observation plate and IFU')
+        hdr['PLATEIFU'] = (galmeta.plateifu, 'MaNGA observation plate and IFU')
 
     # Add versioning
-    hdr['VERSPY'] = ('.'.join([ str(v) for v in sys.version_info[:3]]), 'Python version')
+    hdr['VERSPY'] = ('.'.join([str(v) for v in sys.version_info[:3]]), 'Python version')
     hdr['VERSNP'] = (np.__version__, 'Numpy version')
     hdr['VERSSCI'] = (scipy.__version__, 'Scipy version')
     hdr['VERSAST'] = (astropy.__version__, 'Astropy version')
@@ -172,10 +188,22 @@ def add_wcs(hdr, kin):
 
 # TODO: Assumes uncertainties are provided as inverse variances...
 def finalize_header(hdr, ext, bunit=None, hduclas2='DATA', err=False, qual=False, bm=None,
-                    bit_type=None, prepend=True):
+                    bit_type=None, prepend=True, channel_names=None, channel_units=None):
 
     # Don't change the input header
     _hdr = hdr.copy()
+
+    if channel_names is not None:
+        nchannels = len(channel_names)
+        ndig = int(np.log10(nchannels))+1
+        if channel_units is not None and len(channel_units) != nchannels:
+            raise ValueError('Length of column names and units are not the same.')
+
+        for i in range(nchannels):
+            _hdr['C'+f'{i+1}'.zfill(ndig)] = (channel_names[i], f'Data in channel {i+1}')
+            if channel_units is not None:
+                _hdr['U'+f'{i+1}'.zfill(ndig)] \
+                            = (channel_units[i], f'Units of data in channel {i+1}')
 
     # Add the units
     if bunit is not None:

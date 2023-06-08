@@ -380,3 +380,26 @@ def onsky_asymmetry_maps(x, y, data, pa=0., ivar=None, mask=None, covar=None, ma
     return tuple(map_diff) if _covar is None else tuple(map_diff + diff_covar)
 
 
+# TODO:
+#   - Include error and covariance
+#   - Calculate error-weighted RMS
+#   - ... over a specified radius
+def asymmetry_metrics(diff, growth, gpm=None):
+    """
+    Calculate asymmetry map metrics.
+    """
+    _gpm = np.logical_not(np.ma.getmaskarray(diff))
+    if gpm is not None:
+        _gpm &= gpm
+
+    if not np.any(_gpm):
+        return np.array([]), np.array([]), np.zeros(len(growth)+1, dtype=float)
+
+    abs_diff = np.sort(np.absolute(np.asarray(diff[_gpm])))
+    n = abs_diff.size
+    grw = 1-(np.arange(n)+1)/n
+    fid = np.percentile(abs_diff, growth) if n > 0 else -np.ones(growth.size, dtype=float)
+    return abs_diff, grw, np.append(fid, np.sqrt(np.mean(abs_diff**2)))
+    
+
+

@@ -1,0 +1,7 @@
+#!/usr/bin/env python3
+
+from nirvana.scripts import manga_asymdrift
+
+if __name__ == '__main__':
+    manga_asymdrift.main(manga_asymdrift.parse_args())
+

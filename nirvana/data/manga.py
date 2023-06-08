@@ -24,6 +24,7 @@ import matplotlib.image as img
 
 from astropy.io import fits
 from astropy.wcs import WCS
+from astropy import constants
 
 from .util import get_map_bin_transformations, impose_positive_definite, gaussian_fill, fill_matrix
 from .kinematics import Kinematics
@@ -130,6 +131,7 @@ def manga_versions():
             'MPL-10': {'DRP': 'v3_0_1', 'DAP': '3.0.1', 'collab': True},
             'MPL-11': {'DRP': 'v3_1_1', 'DAP': '3.1.0', 'collab': True},
             'DR17': {'DRP': 'v3_1_1', 'DAP': '3.1.0', 'collab': False}}
+
 
 # TODO: Split this into catalog paths and galaxy paths
 def manga_paths(plate, ifu, daptype='HYB10-MILESHC-MASTARHC2', dr='DR17', redux_path=None,
@@ -334,10 +336,10 @@ def manga_files_from_plateifu(plate, ifu, daptype='HYB10-MILESHC-MASTARHC2', dr=
 
     return maps_file, cube_file, image_file
 
+
 # TODO: Break this into two functions to download the DRPall and DAPall file
 # separately?
-def download_catalogs(dr='DR17', oroot=None, redux_path=None, analysis_path=None, overwrite=True,
-                      sasurl='https://data.sdss.org/sas/mangawork/manga/spectro'):
+def download_catalogs(dr='DR17', oroot=None, redux_path=None, analysis_path=None, overwrite=True):
     """
     Download the two main MaNGA catalog files, the DRPall and DAPall files.
 
@@ -357,8 +359,6 @@ def download_catalogs(dr='DR17', oroot=None, redux_path=None, analysis_path=None
             environmental variable, if it is defined.
         overwrite (:obj:`bool`, optional):
             Overwrite existing files.
-        sasurl (:obj:`str`, optional):
-            Top-level Science Archive Server url with the MaNGA data.
 
     Returns:
         :obj:`tuple`: The names of the two downloaded files: (1) the DRPall
@@ -378,8 +378,10 @@ def download_catalogs(dr='DR17', oroot=None, redux_path=None, analysis_path=None
         # credentials?
         user, acc, password = NETRC.authenticators('data.sdss.org')
         auth = (user, password)
+        sasurl = 'https://data.sdss.org/sas/mangawork/manga/spectro'
     else:
         auth = None
+        sasurl = f'https://data.sdss.org/sas/{dr.lower()}/manga/spectro'
 
     # Get the default relative paths, relative to the top-level reduction and
     # analysis paths
@@ -436,8 +438,7 @@ def download_catalogs(dr='DR17', oroot=None, redux_path=None, analysis_path=None
 
 
 def download_plateifu(plate, ifu, daptype='HYB10-MILESHC-MASTARHC2', dr='DR17', oroot=None, 
-                      redux_path=None, analysis_path=None, overwrite=True,
-                      sasurl='https://data.sdss.org/sas/mangawork/manga/spectro'):
+                      redux_path=None, analysis_path=None, overwrite=True):
     """
     Download the individual plate-ifu MaNGA data files.
 
@@ -468,8 +469,6 @@ def download_plateifu(plate, ifu, daptype='HYB10-MILESHC-MASTARHC2', dr='DR17', 
             environmental variable, if it is defined.
         overwrite (:obj:`bool`, optional):
             Overwrite existing files.
-        sasurl (:obj:`str`, optional):
-            Top-level Science Archive Server url with the MaNGA data.
 
     Returns:
         :obj:`tuple`: The names of the three downloaded files: (1) the DRP
@@ -490,8 +489,10 @@ def download_plateifu(plate, ifu, daptype='HYB10-MILESHC-MASTARHC2', dr='DR17', 
         # credentials?
         user, acc, password = NETRC.authenticators('data.sdss.org')
         auth = (user, password)
+        sasurl = 'https://data.sdss.org/sas/mangawork/manga/spectro'
     else:
         auth = None
+        sasurl = f'https://data.sdss.org/sas/{dr.lower()}/manga/spectro'
 
     # Get the default relative paths
     _, sas_cube_path, sas_image_path, _, sas_maps_path \
@@ -551,6 +552,7 @@ def download_plateifu(plate, ifu, daptype='HYB10-MILESHC-MASTARHC2', dr='DR17', 
         files += (os.path.join(p, f),)
         download_file(f'{_sasurl}/{s}/{f}', files[-1], overwrite=overwrite, auth=auth)
     return files
+
 
 def sdss_bitmask(bitgroup):
     """
@@ -872,6 +874,12 @@ class MaNGAGasKinematics(MaNGAKinematics):
         quiet (:obj:`bool`, optional):
             Suppress printed output.
     """
+
+    tracer = 'Gas'
+    """
+    Tracer name.
+    """
+
     def __init__(self, maps_file, cube_file=None, image_file=None, psf_ext='RPSF', line='Ha-6564',
                  mask_flags='any', flux_bound=None, sb_fill=None, covar=False,
                  positive_definite=False, quiet=False, fwhm_only=False):
@@ -1053,6 +1061,12 @@ class MaNGAStellarKinematics(MaNGAKinematics):
         quiet (:obj:`bool`, optional):
             Suppress printed output.
     """
+
+    tracer = 'Stars'
+    """
+    Tracer name.
+    """
+
     def __init__(self, maps_file, cube_file=None, image_file=None, psf_ext='GPSF',
                  mask_flags='any', unbinned_sb=True, sb_fill=None, covar=False,
                  positive_definite=False, quiet=False, fwhm_only=False):
@@ -1173,46 +1187,85 @@ class MaNGAGlobalPar(GlobalPar):
         ifu (:obj:`int`):
             IFU identifier
         redux_path (:obj:`str`, optional):
-            The top-level directory with all DRP output. If None,
-            this will be set to the ``MANGA_SPECTRO_REDUX``
-            environmental variable, if it is defined.
+            The top-level directory with all DRP output. If None, this will be
+            set to the ``MANGA_SPECTRO_REDUX`` environmental variable, if it is
+            defined.
+        analysis_path (:obj:`str`, optional):
+            The top-level directory with all DAP output. If None, this will be
+            set to the ``MANGA_SPECTRO_ANALYSIS`` environmental variable, if it
+            is defined.
         dr (:obj:`str`, optional):
             Data release identifier; see :func:`manga_versions`.
         drpall_file (:obj:`str`, optional):
             DRPall filename. If None, the filename is assumed to be
-            ``drpall*.fits`` and the path is constructed from other
-            parameters.
+            ``drpall*.fits`` and the path is constructed from other parameters.
         drpall_path (:obj:`str`, optional):
-            This provides the *direct* path to the drpall file,
-            circumventing the use of ``dr`` and ``redux_path``.
+            This provides the *direct* path to the drpall file, circumventing
+            the use of ``dr`` and ``redux_path``.
+        dapall_file (:obj:`str`, optional):
+            DAPall filename. If None, the filename is assumed to be
+            ``dapall*.fits`` and the path is constructed from other parameters.
+        dapall_path (:obj:`str`, optional):
+            This provides the *direct* path to the dapall file, circumventing
+            the use of ``dr`` and ``analysis_path``.
+        drpall (`astropy.io.fits.BinTableHDU`, optional):
+            The binary table with the DRPall data.  This can be provided if the
+            DRPall file has already been opened.  Note this is *not* the full
+            HDUList, just the relevant fits extension.
+        dapall (`astropy.io.fits.BinTableHDU`, optional):
+            The binary table with the DAPall data.  This can be provided if the
+            DAPall file has already been opened.  Note this is *not* the full
+            HDUList, just the relevant fits extension.
         **kwargs:
-            Additional arguments passed directly to the nominal
-            instantiation method.
+            Additional arguments passed directly to the base-class instantiation
+            method.
     """
-    def __init__(self, plate, ifu, redux_path=None, dr='DR17', drpall_file=None,
-                 drpall_path=None, **kwargs):
+    def __init__(self, plate, ifu, redux_path=None, analysis_path=None, dr='DR17',
+                 drpall_file=None, drpall_path=None, dapall_file=None, dapall_path=None,
+                 drpall=None, dapall=None, **kwargs):
 
-        if drpall_file is None:
-            # Get the default file name
-            drpall_file = manga_file_names(plate, ifu, dr=dr)[0]
-            if drpall_path is None:
-                # Get the default path
-                drpall_path = manga_paths(plate, ifu, dr=dr, redux_path=redux_path)[0]
-            if drpall_path is None:
-                raise ValueError('Could not define path to the DRPall file.')
-            drpall_file = os.path.join(drpall_path, drpall_file)
+        # Read the DRPall database, if not provided
+        if drpall is None:
+            if drpall_file is None:
+                # Get the default file name
+                drpall_file = manga_file_names(plate, ifu, dr=dr)[0]
+                if drpall_path is None:
+                    # Get the default path
+                    drpall_path = manga_paths(plate, ifu, dr=dr, redux_path=redux_path)[0]
+                if drpall_path is None:
+                    raise ValueError('Could not define path to the DRPall file.')
+                drpall_file = os.path.join(drpall_path, drpall_file)
+            print('Reading DRPall file...')
+            with fits.open(drpall_file) as hdu:
+                drpall = hdu['MANGA'].data
+            print('    DONE')
 
-        # Read the table
+        # Read the DAPall database, if not provided
+        if dapall is None:
+            if dapall_file is None:
+                # Get the default file name
+                dapall_file = manga_file_names(plate, ifu, dr=dr)[3]
+                if dapall_path is None:
+                    # Get the default path
+                    dapall_path = manga_paths(plate, ifu, dr=dr, analysis_path=analysis_path)[3]
+                if dapall_path is None:
+                    raise ValueError('Could not define path to the DAPall file.')
+                dapall_file = os.path.join(dapall_path, dapall_file)
+            # For the redshift used by the DAP, we actually need the DAPall file
+            print('Reading DAPall file ...')
+            with fits.open(dapall_file) as hdu:
+                # The redshift used by the DAP is independent of the DAPTYPE, so
+                # just use the first extension
+                dapall = hdu[1].data
+            print('    DONE')
+
+        # Find the index in the DAPall file
         plateifu = f'{plate}-{ifu}'
-        print('Reading DRPall file...')
-        with fits.open(drpall_file) as hdu:
-            drpall = hdu['MANGA'].data
-        print('    DONE')
-
-        # Find the relevant row
-        indx = np.where(drpall['PLATEIFU'] == plateifu)[0]
-        if len(indx) != 1:
-            raise ValueError(f'Could not find {plateifu} in {drpall_file}.')
+        dapindx = np.where(dapall['PLATEIFU'] == plateifu)[0]
+        if len(dapindx) != 1:
+            raise ValueError(f'Could not find {plateifu} in {dapall_file}.')
+        dapindx = dapindx[0]
+        drpindx = dapall['DRPALLINDX'][dapindx]
 
         # Default to the elliptical Petrosian photometric values. These are
         # supposed to be more robust than the Sersic fits, particularly for the
@@ -1223,21 +1276,20 @@ class MaNGAGlobalPar(GlobalPar):
         # Index is always included, regardless of whether or not the rest of
         # the photometric measurements are based on the elliptical Petrosian
         # analysis.
-        indx = indx[0]
-        if drpall['nsa_elpetro_th50_r'][indx] > 0:
+        if drpall['nsa_elpetro_th50_r'][drpindx] > 0:
             phot_key = 'elpetro'
-            mass = drpall['nsa_elpetro_mass'][indx]
-            pa = drpall['nsa_elpetro_phi'][indx]
-            ell = 1. - drpall['nsa_elpetro_ba'][indx]
-            reff = drpall['nsa_elpetro_th50_r'][indx]
-            sersic_n = drpall['nsa_sersic_n'][indx]
-        elif drpall['nsa_sersic_th50'][indx] > 0:
+            mass = drpall['nsa_elpetro_mass'][drpindx]
+            pa = drpall['nsa_elpetro_phi'][drpindx]
+            ell = 1. - drpall['nsa_elpetro_ba'][drpindx]
+            reff = drpall['nsa_elpetro_th50_r'][drpindx]
+            sersic_n = drpall['nsa_sersic_n'][drpindx]
+        elif drpall['nsa_sersic_th50'][drpindx] > 0:
             phot_key = 'sersic'
-            mass = drpall['nsa_sersic_mass'][indx]
-            pa = drpall['nsa_sersic_phi'][indx]
-            ell = 1. - drpall['nsa_sersic_ba'][indx]
-            reff = drpall['nsa_sersic_th50'][indx]
-            sersic_n = drpall['nsa_sersic_n'][indx]
+            mass = drpall['nsa_sersic_mass'][drpindx]
+            pa = drpall['nsa_sersic_phi'][drpindx]
+            ell = 1. - drpall['nsa_sersic_ba'][drpindx]
+            reff = drpall['nsa_sersic_th50'][drpindx]
+            sersic_n = drpall['nsa_sersic_n'][drpindx]
         else:
             warnings.warn('Photometric data unavailable; adopting bogus defaults.')
             phot_key = None
@@ -1247,37 +1299,45 @@ class MaNGAGlobalPar(GlobalPar):
             reff = 1.0
             sersic_n = 1.0
 
-        z = drpall['z'][indx]
-        if z <= 0.:
-            warnings.warn('Redshift not available; adopting z=0!')
+        # Set the reshift
+        z = dapall['Z'][dapindx]
+        if z <= -500 / constants.c.to('km/s').value:
+            warnings.warn('Redshift is <-500 km/s; adopting z=0!')
             z = 0.
 
         # Instantiate the object
-        super().__init__(ra=drpall['objra'][indx], dec=drpall['objdec'][indx], mass=mass, z=z,
-                         pa=pa, ell=ell, reff=reff, sersic_n=sersic_n, **kwargs)
+        super().__init__(ra=drpall['objra'][drpindx], dec=drpall['objdec'][drpindx], mass=mass,
+                         z=z, pa=pa, ell=ell, reff=reff, sersic_n=sersic_n, **kwargs)
 
         # Save MaNGA-specific attributes
         self.dr = 'unknown' if dr is None else dr
-        self.mangaid = drpall['mangaid'][indx]
+        self.mangaid = drpall['mangaid'][drpindx]
         self.plate = plate
         self.ifu = ifu
+        self.plateifu = plateifu
         self.drpall_file = drpall_file
+        self.mngtarg1 = drpall['mngtarg1'][drpindx]
+        self.mngtarg3 = drpall['mngtarg3'][drpindx]
+        self.drp3qual = drpall['drp3qual'][drpindx]
+        self.dapqual = dapall['DAPQUAL'][dapindx]
+        self.drpindx = drpindx
+        self.dapindx = dapindx
         self.primaryplus, self.secondary, self.ancillary, self.other \
-                = parse_manga_targeting_bits(drpall['mngtarg1'][indx],
-                                             mngtarg3=drpall['mngtarg3'][indx])
+                = parse_manga_targeting_bits(self.mngtarg1, mngtarg3=self.mngtarg3)
         self.psf_band = np.array(['g', 'r', 'i', 'z'])
-        self.psf_fwhm = np.array([drpall['gfwhm'][indx], drpall['rfwhm'][indx],
-                                  drpall['ifwhm'][indx], drpall['zfwhm'][indx]])
+        self.psf_fwhm = np.array([drpall['gfwhm'][drpindx], drpall['rfwhm'][drpindx],
+                                  drpall['ifwhm'][drpindx], drpall['zfwhm'][drpindx]])
 
         # Save some of the measured magnitudes, if they're available
+        # TODO: Why not just save them all?
         self.phot_key = phot_key
         if self.phot_key is None:
             self.mag_band = None
             self.mag = None
         else:
             self.mag_band = np.array(['NUV', 'r', 'i'])
-            self.mag = np.array([drpall[f'nsa_{self.phot_key}_absmag'][indx][1],
-                                 drpall[f'nsa_{self.phot_key}_absmag'][indx][4],
-                                 drpall[f'nsa_{self.phot_key}_absmag'][indx][5]])
+            self.mag = np.array([drpall[f'nsa_{self.phot_key}_absmag'][drpindx][1],
+                                 drpall[f'nsa_{self.phot_key}_absmag'][drpindx][4],
+                                 drpall[f'nsa_{self.phot_key}_absmag'][drpindx][5]])
 
 

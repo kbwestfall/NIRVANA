@@ -142,7 +142,9 @@ class VoronoiBinning:
         return binid
 
 
-# TODO: Include an optional weight map?
+# TODO:
+#   - Include an optional weight map?
+#   - Include covariance
 class Bin2D:
     r"""
     A utility class for handling two-dimensional binning.

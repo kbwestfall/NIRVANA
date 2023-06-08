@@ -9,9 +9,10 @@ from scipy import linalg, stats
 
 def cov_err(jac):
     """
-    Provided the Jacobian matrix (the derivative of from a least-squares minimization
-    routine, construct the parameter covariance matrix. See e.g.
-    Press et al. 2007, Numerical Recipes, 3rd ed., Section 15.4.2
+    Provided the Jacobian matrix (the derivative of chi-square w.r.t. the model
+    parameters from a least-squares minimization routine, construct the
+    parameter covariance matrix. See e.g.  Press et al. 2007, Numerical Recipes,
+    3rd ed., Section 15.4.2
 
     This is directly pulled from ppxf.capfit.cov_err, but only
     returns the covariance matrix.  See:

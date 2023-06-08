@@ -16,13 +16,14 @@ from matplotlib import pyplot, rc, patches, ticker, colors
 import warnings
 
 from .bin2d import Bin2D
-from .util import gaussian_deviates, growth_lim, select_kinematic_axis, bin_stats
+from .util import gaussian_deviates, growth_lim, impose_positive_definite
+from .util import select_kinematic_axis, bin_stats, find_largest_coherent_region
 from ..util import plot
 from ..models import asymmetry
 from ..models.beam import construct_beam, ConvolveFFTW, smear
-from ..models.geometry import projected_polar
+from ..models.geometry import projected_polar, disk_ellipse
 
-# TODO: Make Kinematics a subclass of Bin2D?
+
 class Kinematics:
     r"""
     Base class to hold data fit by the kinematic model.
@@ -193,6 +194,12 @@ class Kinematics:
             neither, or if ``binid`` is provided but ``grid_x`` or
             ``grid_y`` is None.
     """
+
+    tracer = None
+    """
+    Tracer designation.  Undefined by default, but can be set for derived classes.
+    """
+
     # TODO: We should change sb_anr to be just a generic S/N ratio.  I.e.,
     # Kinematics shouldn't care about the type of tracer.
     # TODO: Remove arguments that are redundant with the GlobalPar class?
@@ -832,12 +839,13 @@ class Kinematics:
             if mask.ndim > 1: mask = self.bin(mask)
             setattr(self, m, np.array(getattr(self, m) + mask, dtype=bool))
 
-    def clip_err(self, max_vel_err=None, max_sig_err=None):
+    def clip_err(self, max_vel_err=None, max_sig_err=None, save=True):
         """
         Reject data with large errors.
 
-        The rejection is directly incorporated into :attr:`vel_mask` and
-        :attr:`sig_mask`.
+        By default, the rejection is propagated to :attr:`vel_mask` and
+        :attr:`sig_mask`; set ``save`` to False to force these attributes to
+        remain unaltered.
 
         Args:
             max_vel_err (:obj:`float`, optional):
@@ -847,24 +855,27 @@ class Kinematics:
                 Maximum allowed *observed* velocity dispersion error. I.e.,
                 this is the measurement error before any velocity dispersion
                 correction.  If None, no additional masking is performed.
+            save (:obj:`bool`, optional):
+                Propagate the rejection flags to the internal masks.  If False,
+                :attr:`vel_mask` and :attr:`sig_mask` remain unaltered.
 
         Returns:
-            :obj:`tuple`: Two objects are returned selecting the data that
-            were rejected. If :attr:`sig` is None, the returned object
-            selecting the velocity dispersion data that was rejected is also
-            None.
+            :obj:`tuple`: Two objects are returned selecting the data to be If
+            :attr:`sig` is None, the returned object selecting the velocity
+            dispersion data that were rejected is also None.
         """
         vel_rej = np.zeros(self.vel.size, dtype=bool) if max_vel_err is None else \
                     self.vel_ivar < 1/max_vel_err**2
         sig_rej = None if self.sig is None else \
                     (np.zeros(self.sig.size, dtype=bool) if max_sig_err is None else
                      self.sig_ivar < 1/max_sig_err**2)
-        self.reject(vel_rej=vel_rej, sig_rej=sig_rej)
+        if save:
+            self.reject(vel_rej=vel_rej, sig_rej=sig_rej)
         return vel_rej, sig_rej
 
     # TODO: Include a separate S/N measurement, like as done with A/N for the
     # gas.
-    def clip_snr(self, min_vel_snr=None, min_sig_snr=None):
+    def clip_snr(self, min_vel_snr=None, min_sig_snr=None, save=True):
         """
         Reject data with low S/N.
 
@@ -873,8 +884,9 @@ class Kinematics:
         raised if the surface-brightness or surface-brightness error are not
         defined.
 
-        The rejection is directly incorporated into :attr:`vel_mask` and
-        :attr:`sig_mask`.
+        By default, the rejection is directly incorporated into :attr:`vel_mask`
+        and :attr:`sig_mask`; set ``save`` to False to force these attributes to
+        remain unaltered.
 
         Args:
             min_vel_snr (:obj:`float`, optional):
@@ -883,12 +895,14 @@ class Kinematics:
             min_sig_snr (:obj:`float`, optional):
                 Minimum S/N for a spaxel to use for dispersion measurements.
                 If None, no additional masking is performed.
+            save (:obj:`bool`, optional):
+                Propagate the rejection flags to the internal masks.  If False,
+                :attr:`vel_mask` and :attr:`sig_mask` remain unaltered.
 
         Returns:
-            :obj:`tuple`: Two objects are returned selecting the data that
-            were rejected. If :attr:`sig` is None, the returned object
-            selecting the velocity dispersion data that was rejected is also
-            None.
+            :obj:`tuple`: Two objects are returned selecting the data that were
+            rejected. If :attr:`sig` is None, the returned object selecting the
+            velocity dispersion data that were rejected is also None.
         """
         if self.sb is None or self.sb_ivar is None:
             raise ValueError('Cannot perform S/N rejection; no surface brightness and/or '
@@ -898,8 +912,212 @@ class Kinematics:
         sig_rej = None if self.sig is None else \
                     (np.zeros(self.sig.size, dtype=bool) if min_sig_snr is None else
                      snr < min_sig_snr)
-        self.reject(vel_rej=vel_rej, sig_rej=sig_rej)
+        if save:
+            self.reject(vel_rej=vel_rej, sig_rej=sig_rej)
         return vel_rej, sig_rej
+
+    def clip_spatial(self, vel_mask=None, sig_mask=None, save=True):
+        """
+        Reject pixels that are not consituents of the largest coherent patch,
+        independently for the velocity and dispersion measurements.  See
+        :func:`~nirvana.data.util.find_largest_coherent_region`.
+
+        By default, the rejection is directly incorporated into :attr:`vel_mask`
+        and :attr:`sig_mask`; set ``save`` to False to force these attributes to
+        remain unaltered.
+
+        If all values are masked on input (either ``vel_mask`` or ``sig_mask``
+        is all True), the returned arrays will indicate that none of the values
+        were rejected because of their spatial distribution.
+
+        Args:
+            vel_mask (`numpy.ndarray`_, optional):
+                Velocity mask.  Shape must match :attr:`vel`.  Can be a
+                boolean (bad-pixel) mask or a bit mask; for the latter, all
+                values greater than zero are assumed to be masked.  If None,
+                :attr:`vel_mask` is used.
+            sig_mask (`numpy.ndarray`_, optional):
+                Velocity dispersion mask.  Shape must match :attr:`sig`.
+                Can be a boolean (bad-pixel) mask or a bit mask; for the latter,
+                all values greater than zero are assumed to be masked.  If None,
+                :attr:`sig_mask` is used.
+            save (:obj:`bool`, optional):
+                Propagate the rejection flags to the internal masks.  If False,
+                :attr:`vel_mask` and :attr:`sig_mask` remain unaltered.
+
+        Returns:
+            :obj:`tuple`: Two objects are returned selecting the data that were
+            rejected. If :attr:`sig` is None, the returned object selecting the
+            velocity dispersion data that were rejected is also None.
+        """
+        _vel_mask = self.vel_mask.copy() if vel_mask is None else vel_mask.copy()
+        if _vel_mask is not None and self.vel is not None and _vel_mask.shape != self.vel.shape:
+            raise ValueError(f'Velocity mask has incorrect shape; found {_vel_mask.shape}, '
+                             f'expected {self.vel.shape}.')
+        _sig_mask = self.sig_mask.copy() if sig_mask is None else sig_mask.copy()
+        if _sig_mask is not None and self.sig is not None and _sig_mask.shape != self.sig.shape:
+            raise ValueError(f'Dispersion mask has incorrect shape; found {_sig_mask.shape}, '
+                             f'expected {self.sig.shape}.')
+        if _vel_mask is None and _sig_mask is None:
+            warnings.warn('No masks available from which to return coherent region.  No '
+                          'rejections to perform.')
+            vel_rej = None if self.vel is None else np.zeros(self.vel.shape, dtype=bool)
+            sig_rej = None if self.sig is None else np.zeros(self.sig.shape, dtype=bool)
+            return vel_rej, sig_rej
+
+        if _vel_mask is None:
+            vel_rej = None
+        else:
+            _vel_mask = _vel_mask.astype(int)
+            gpm = np.logical_not(self.remap(_vel_mask, masked=False, fill_value=1).astype(bool))
+            if not np.any(gpm):
+                vel_rej = np.zeros(self.vel.shape, dtype=bool)
+            else:
+                indx = find_largest_coherent_region(gpm.astype(int)).astype(int)
+                vel_rej = np.logical_not(self.bin(indx).astype(bool)) & (_vel_mask == 0)
+
+        if _sig_mask is None:
+            sig_rej = None
+        else:
+            _sig_mask = _sig_mask.astype(int)
+            gpm = np.logical_not(self.remap(_sig_mask, masked=False, fill_value=1).astype(bool))
+            if not np.any(gpm):
+                sig_rej = np.zeros(self.sig.shape, dtype=bool)
+            else:
+                indx = find_largest_coherent_region(gpm.astype(int)).astype(int)
+                sig_rej = np.logical_not(self.bin(indx).astype(bool)) & (_sig_mask == 0)
+        if save:
+            self.reject(vel_rej=vel_rej, sig_rej=sig_rej)
+        return vel_rej, sig_rej
+
+    # TODO: provide a keyword parameter providing the names of the mask bits to be used?
+    def init_fitting_masks(self, bitmask=None, max_vel_err=None, max_sig_err=None,
+                           min_vel_snr=None, min_sig_snr=None, select_coherent=False,
+                           save=True, verbose=False):
+        """
+        Initialize masks to be used when fitting the kinematic data.
+
+        This is a convenience function that combines :func:`clip_err`,
+        :func:`clip_snr`, and :func:`clip_spatial`.  It can also propagate the
+        results to a bitmask; see ``bitmask``.
+
+        Args:
+            bitmask (:class:`~nirvana.models.thindisk.ThinDiskFitBitMask`, optional):
+                The bitmask instance used to flag bits.  If None, returned
+                arrays are boolean.
+            max_vel_err (:obj:`float`, optional):
+                Maximum allowed velocity error. If None, no additional
+                masking is performed.
+            max_sig_err (:obj:`float`, optional):
+                Maximum allowed *observed* velocity dispersion error. I.e.,
+                this is the measurement error before any velocity dispersion
+                correction.  If None, no additional masking is performed.
+            min_vel_snr (:obj:`float`, optional):
+                Minimum S/N for a spaxel to use for velocity measurements. If
+                None, no additional masking is performed.
+            min_sig_snr (:obj:`float`, optional):
+                Minimum S/N for a spaxel to use for dispersion measurements.
+                If None, no additional masking is performed.
+            select_coherent (:obj:`bool`, optional):
+                Mask any measurements that are not included in the largest
+                coherent region of adjacent measurements.  This assessment is
+                done after applying the error and S/N rejections.
+            save (:obj:`bool`, optional):
+                Propagate the rejection flags to the internal masks.  If False,
+                :attr:`vel_mask` and :attr:`sig_mask` remain unaltered.
+            verbose (:obj:`bool`, optional):
+                Include print statements reporting the number of rejections
+                performed.
+
+        Returns:
+            :obj:`tuple`: Two objects are returned selecting the data to be
+            masked.  If :attr:`sig` is None, the returned object selecting the
+            velocity dispersion data that were rejected is also None.  If a
+            ``bitmask`` is provided, the returned arrays have the appropriate
+            integer type; otherwise, boolean arrays are returned that select
+            pixels rejected for any reason.
+        """
+        # Everything that is currently masked is never used
+        vel_didnotuse = self.vel_mask.copy() 
+        sig_didnotuse = None if self.sig is None else self.sig_mask.copy()
+
+        # Find the data with large errors
+        vel_largeerr, sig_largeerr = self.clip_err(max_vel_err=max_vel_err,
+                                                   max_sig_err=max_sig_err, save=False)
+        # Find the data with low S/N        
+        vel_lowsnr, sig_lowsnr = self.clip_snr(min_vel_snr=min_vel_snr, min_sig_snr=min_sig_snr,
+                                               save=False)
+
+        # Collate all the rejections
+        vel_rej = vel_didnotuse | vel_largeerr | vel_lowsnr
+        sig_rej = None if self.sig is None else (sig_didnotuse | sig_largeerr | sig_lowsnr)
+
+        # Select coherent regions, if requested
+        if select_coherent:
+            vel_disjoint, sig_disjoint = self.clip_spatial(vel_mask=vel_rej, sig_mask=sig_rej,
+                                                           save=False)
+            vel_rej |= vel_disjoint
+            if self.sig is not None:
+                sig_rej |= sig_disjoint
+        else:
+            vel_disjoint = None
+            sig_disjoint = None
+
+        if verbose:
+            any_removed = np.any(vel_largeerr) or np.any(vel_lowsnr) or np.any(vel_disjoint)
+            if any_removed:
+                print('Velocity measurements removed:')
+            else:
+                print('Velocity measurements removed: NONE')
+            if np.any(vel_largeerr):
+                print(f'    Large errors: {np.sum(vel_largeerr)}')
+            if np.any(vel_lowsnr):
+                print(f'         Low S/N: {np.sum(vel_lowsnr)}')
+            if np.any(vel_disjoint):
+                print(f'        Disjoint: {np.sum(vel_disjoint)}')
+
+            any_removed = np.any(sig_largeerr) or np.any(sig_lowsnr) or np.any(sig_disjoint)
+            if any_removed:
+                print('Dispersion measurements removed:')
+            else:
+                print('Dispersion measurements removed: NONE')
+            if np.any(sig_largeerr):
+                print(f'    Large errors: {np.sum(sig_largeerr)}')
+            if np.any(sig_lowsnr):
+                print(f'         Low S/N: {np.sum(sig_lowsnr)}')
+            if np.any(sig_disjoint):
+                print(f'        Disjoint: {np.sum(sig_disjoint)}')
+
+        # Save the rejections if requested
+        if save:
+            self.reject(vel_rej=vel_rej, sig_rej=sig_rej)
+
+        # If the bitmask is not defined, just return the boolean arrays
+        if bitmask is None:
+            return vel_rej, sig_rej
+
+        # Collect the velocity bitmask flags
+        vel_mask = bitmask.init_mask_array(self.vel.shape)
+        vel_mask[vel_didnotuse] = bitmask.turn_on(vel_mask[vel_didnotuse], 'DIDNOTUSE')
+        vel_mask[vel_largeerr] = bitmask.turn_on(vel_mask[vel_largeerr], 'REJ_ERR')
+        vel_mask[vel_lowsnr] = bitmask.turn_on(vel_mask[vel_lowsnr], 'REJ_SNR')
+        if select_coherent:
+            vel_mask[vel_disjoint] = bitmask.turn_on(vel_mask[vel_disjoint], 'DISJOINT')
+
+        # If there are not sigma measurements, we're done
+        if self.sig is None:
+            return vel_mask, None
+
+        # Collect the dispersion bitmask flags
+        sig_mask = bitmask.init_mask_array(self.sig.shape)
+        sig_mask[sig_didnotuse] = bitmask.turn_on(sig_mask[sig_didnotuse], 'DIDNOTUSE')
+        sig_mask[sig_largeerr] = bitmask.turn_on(sig_mask[sig_largeerr], 'REJ_ERR')
+        sig_mask[sig_lowsnr] = bitmask.turn_on(sig_mask[sig_lowsnr], 'REJ_SNR')
+        if select_coherent:
+            sig_mask[sig_disjoint] = bitmask.turn_on(sig_mask[sig_disjoint], 'DISJOINT')
+
+        # Done    
+        return vel_mask, sig_mask
 
     def deviate(self, size=None, rng=None, sigma='draw'):
         r"""
@@ -986,9 +1204,9 @@ class Kinematics:
     # TODO:
     #   - Allow the plot to be constructed from the fits file written by
     #     axisym_fit_data
-    def asymmetry_plot(self, galmeta=None, xc=0., yc=0., pa=0., vsys=0., fwhm=None, vel_mask=None,
-                       sig_mask=None, ofile=None):
-        """
+    def asymmetry_plot(self, galmeta=None, xc=0., yc=0., pa=0., inc=0., vsys=0., ell_r=None,
+                       fwhm=None, vel_mask=None, sig_mask=None, ofile=None):
+        r"""
         Construct a plot showing reflective asymmetries in the velocity and
         velocity dispersion.
 
@@ -1001,8 +1219,19 @@ class Kinematics:
                 Kinematic center relative to :attr:`grid_y`.
             pa (:obj:`float`, optional):
                 Position angle of the major axis, from N through E in degrees.
+            inc (:obj:`float`, optional):
+                An inclination used to create an ellipse that marks a specific
+                in-plane radius; see ``ell_r``.  If ``ell_r`` is None, no
+                ellipse is plotted.  
             vsys (:obj:`float`, optional):
                 Systemic velocity.
+            ell_r (:obj:`float`, optional):
+                The radius of an ellipse used to mark a specific in-plane
+                radius.  If None, the maximum radius within a :math:`\pm 10` deg
+                wedge along the major axis is used.  The ellipticity, center,
+                and orientation of the ellipse are set by the provided
+                inclination (``inc``), center (``xc``, ``yc``), and position
+                angle (``pa``).
             fwhm (:obj:`float`, optional):
                 FWHM of the PSF in arcsec.  If provided, this is used to add the
                 nominal beam size to the map plots.
@@ -1049,6 +1278,41 @@ class Kinematics:
                                                                   sig.data, pa=pa, mask=sig.mask,
                                                                   maxd=0.4)
 
+        # Elliptical radius used in plotting and asymmetry RMS calculation
+        r, th = projected_polar(self.grid_x-xc, self.grid_y-yc, *np.radians([pa, inc]))
+        if ell_r is None:
+            major_gpm = select_kinematic_axis(r, th, which='major', r_range='all', wedge=10.)
+            major_gpm &= np.logical_not(np.ma.getmaskarray(vel))
+            ell_r = np.amax(r[major_gpm]) if np.any(major_gpm) else -1
+        de_x, de_y = disk_ellipse(ell_r, np.radians(pa), np.radians(inc), xc=xc, yc=yc)
+        ellip_gpm = None if ell_r < 0 else r < ell_r
+
+        # Asymmetry metrics
+        fid_grw = np.array([50., 80., 90.])
+
+        abs_vel_x, grw_vel_x, fid_vel_x = asymmetry.asymmetry_metrics(vel_x, fid_grw)
+        abs_vel_y, grw_vel_y, fid_vel_y = asymmetry.asymmetry_metrics(vel_y, fid_grw)
+        abs_vel_xy, grw_vel_xy, fid_vel_xy = asymmetry.asymmetry_metrics(vel_xy, fid_grw)
+
+        abs_sig_x, grw_sig_x, fid_sig_x = asymmetry.asymmetry_metrics(sig_x, fid_grw)
+        abs_sig_y, grw_sig_y, fid_sig_y = asymmetry.asymmetry_metrics(sig_y, fid_grw)
+        abs_sig_xy, grw_sig_xy, fid_sig_xy = asymmetry.asymmetry_metrics(sig_xy, fid_grw)
+
+        if ellip_gpm is not None:
+            ell_abs_vel_x, ell_grw_vel_x, ell_fid_vel_x \
+                    = asymmetry.asymmetry_metrics(vel_x, fid_grw, gpm=ellip_gpm)
+            ell_abs_vel_y, ell_grw_vel_y, ell_fid_vel_y \
+                    = asymmetry.asymmetry_metrics(vel_y, fid_grw, gpm=ellip_gpm)
+            ell_abs_vel_xy, ell_grw_vel_xy, ell_fid_vel_xy \
+                    = asymmetry.asymmetry_metrics(vel_xy, fid_grw, gpm=ellip_gpm)
+
+            ell_abs_sig_x, ell_grw_sig_x, ell_fid_sig_x \
+                    = asymmetry.asymmetry_metrics(sig_x, fid_grw, gpm=ellip_gpm)
+            ell_abs_sig_y, ell_grw_sig_y, ell_fid_sig_y \
+                    = asymmetry.asymmetry_metrics(sig_y, fid_grw, gpm=ellip_gpm)
+            ell_abs_sig_xy, ell_grw_sig_xy, ell_fid_sig_xy \
+                    = asymmetry.asymmetry_metrics(sig_xy, fid_grw, gpm=ellip_gpm)
+
         # Set the extent for the 2D maps
         extent = [np.amax(self.grid_x), np.amin(self.grid_x),
                   np.amin(self.grid_y), np.amax(self.grid_y)]
@@ -1080,6 +1344,8 @@ class Kinematics:
         ax.arrow(xc, yc, skylim[1]*0.7*np.cos(np.radians(90-pa)),
                  skylim[1]*0.7*np.sin(np.radians(90-pa)), zorder=5, length_includes_head=True,
                  head_length=2., head_width=1.0, facecolor='k', edgecolor='k')
+        if de_x is not None:
+            ax.plot(de_x, de_y, color='w', lw=2, zorder=6, alpha=0.5)
         cb = fig.colorbar(im, cax=cax, orientation='horizontal')
         cb.ax.xaxis.set_ticks_position('top')
         cb.ax.xaxis.set_label_position('top')
@@ -1102,6 +1368,8 @@ class Kinematics:
                          transform=ax.transAxes, facecolor='0.7', edgecolor='k', zorder=4))
         im = ax.imshow(vel_x, origin='lower', interpolation='nearest', cmap='RdBu_r',
                        extent=extent, vmin=v_res_lim[0], vmax=v_res_lim[1], zorder=4)
+        if de_x is not None:
+            ax.plot(de_x, de_y, color='w', lw=2, zorder=6, alpha=0.5)
         cb = fig.colorbar(im, cax=cax, orientation='horizontal')
         cb.ax.xaxis.set_ticks_position('top')
         cb.ax.xaxis.set_label_position('top')
@@ -1120,6 +1388,8 @@ class Kinematics:
                          transform=ax.transAxes, facecolor='0.7', edgecolor='k', zorder=4))
         im = ax.imshow(vel_y, origin='lower', interpolation='nearest', cmap='RdBu_r',
                        extent=extent, vmin=v_res_lim[0], vmax=v_res_lim[1], zorder=4)
+        if de_x is not None:
+            ax.plot(de_x, de_y, color='w', lw=2, zorder=6, alpha=0.5)
         cb = fig.colorbar(im, cax=cax, orientation='horizontal')
         cb.ax.xaxis.set_ticks_position('top')
         cb.ax.xaxis.set_label_position('top')
@@ -1138,6 +1408,8 @@ class Kinematics:
                          transform=ax.transAxes, facecolor='0.7', edgecolor='k', zorder=4))
         im = ax.imshow(vel_xy, origin='lower', interpolation='nearest', cmap='RdBu_r',
                        extent=extent, vmin=v_res_lim[0], vmax=v_res_lim[1], zorder=4)
+        if de_x is not None:
+            ax.plot(de_x, de_y, color='w', lw=2, zorder=6, alpha=0.5)
         cb = fig.colorbar(im, cax=cax, orientation='horizontal')
         cb.ax.xaxis.set_ticks_position('top')
         cb.ax.xaxis.set_label_position('top')
@@ -1162,6 +1434,8 @@ class Kinematics:
                         extent=extent, vmin=sig_lim[0], vmax=sig_lim[1], zorder=4)
             # Mark the fitted dynamical center
             ax.scatter(xc, yc, marker='+', color='k', s=40, lw=1, zorder=5)
+            if de_x is not None:
+                ax.plot(de_x, de_y, color='w', lw=2, zorder=6, alpha=0.5)
             cb = fig.colorbar(im, cax=cax, orientation='horizontal')
             cax.text(-0.05, 0.1, r'$\sigma$', ha='right', va='center', transform=cax.transAxes)
 
@@ -1182,6 +1456,8 @@ class Kinematics:
                             transform=ax.transAxes, facecolor='0.7', edgecolor='k', zorder=4))
             im = ax.imshow(sig_x, origin='lower', interpolation='nearest', cmap='RdBu_r',
                            extent=extent, vmin=s_res_lim[0], vmax=s_res_lim[1], zorder=4)
+            if de_x is not None:
+                ax.plot(de_x, de_y, color='w', lw=2, zorder=6, alpha=0.5)
             cb = fig.colorbar(im, cax=cax, orientation='horizontal')
             cax.text(-0.05, 0.1, r'$\Delta \sigma_x$', ha='right', va='center',
                      transform=cax.transAxes)
@@ -1199,6 +1475,8 @@ class Kinematics:
                             transform=ax.transAxes, facecolor='0.7', edgecolor='k', zorder=4))
             im = ax.imshow(sig_y, origin='lower', interpolation='nearest', cmap='RdBu_r',
                            extent=extent, vmin=s_res_lim[0], vmax=s_res_lim[1], zorder=4)
+            if de_x is not None:
+                ax.plot(de_x, de_y, color='w', lw=2, zorder=6, alpha=0.5)
             cb = fig.colorbar(im, cax=cax, orientation='horizontal')
             cax.text(-0.05, 0.1, r'$\Delta \sigma_y$', ha='right', va='center',
                      transform=cax.transAxes)
@@ -1216,13 +1494,15 @@ class Kinematics:
                             transform=ax.transAxes, facecolor='0.7', edgecolor='k', zorder=4))
             im = ax.imshow(sig_xy, origin='lower', interpolation='nearest', cmap='RdBu_r',
                            extent=extent, vmin=s_res_lim[0], vmax=s_res_lim[1], zorder=4)
+            if de_x is not None:
+                ax.plot(de_x, de_y, color='w', lw=2, zorder=6, alpha=0.5)
             cb = fig.colorbar(im, cax=cax, orientation='horizontal')
             cax.text(-0.05, 0.1, r'$\Delta \sigma_{xy}$', ha='right', va='center',
                      transform=cax.transAxes)
  
         #-------------------------------------------------------------------
         # SDSS image
-        ax = fig.add_axes([0.03, 0.08, 0.28, 0.28])
+        ax = fig.add_axes([0.03, 0.14, 0.28, 0.28])
         if self.image is not None:
             ax.imshow(self.image)
         else:
@@ -1234,49 +1514,72 @@ class Kinematics:
         ax.axes.get_xaxis().set_visible(False)
         ax.axes.get_yaxis().set_visible(False)
 
+        # TODO: This is MaNGa specific!
         if galmeta is not None:
             ax.text(0.00, -0.05, 'MaNGA ID:', ha='left', va='center', transform=ax.transAxes,
                     fontsize=10)
             ax.text(1.01, -0.05, f'{galmeta.mangaid}', ha='right', va='center',
                     transform=ax.transAxes, fontsize=10)
             # Observation
-            ax.text(0.00, -0.13, 'Observation:', ha='left', va='center', transform=ax.transAxes,
+            ax.text(0.00, -0.12, 'Observation:', ha='left', va='center', transform=ax.transAxes,
                     fontsize=10)
-            ax.text(1.01, -0.13, f'{galmeta.plate}-{galmeta.ifu}', ha='right', va='center',
+            ax.text(1.01, -0.12, galmeta.plateifu, ha='right', va='center',
                     transform=ax.transAxes, fontsize=10)
+        # Observation
+        ax.text(0.00, -0.19, r'$V_{\rm asym}$ (all: x, y, xy)', ha='left', va='center',
+                transform=ax.transAxes, fontsize=10)
+        ax.text(1.01, -0.19, f'{fid_vel_x[-1]:.1f}, {fid_vel_y[-1]:.1f}, {fid_vel_xy[-1]:.1f}',
+                ha='right', va='center', transform=ax.transAxes, fontsize=10)
+        if ellip_gpm is not None:
+            ax.text(0.00, -0.26, r'$V_{\rm asym}$ (ell.: x, y, xy)', ha='left', va='center',
+                    transform=ax.transAxes, fontsize=10)
+            ax.text(1.01, -0.26,
+                    f'{ell_fid_vel_x[-1]:.1f}, {ell_fid_vel_y[-1]:.1f}, {ell_fid_vel_xy[-1]:.1f}',
+                    ha='right', va='center', transform=ax.transAxes, fontsize=10)
+        ax.text(0.00, -0.33, r'$\sigma_{\rm asym}$ (all: x, y, xy)', ha='left', va='center',
+                transform=ax.transAxes, fontsize=10)
+        ax.text(1.01, -0.33, f'{fid_sig_x[-1]:.1f}, {fid_sig_y[-1]:.1f}, {fid_sig_xy[-1]:.1f}',
+                ha='right', va='center', transform=ax.transAxes, fontsize=10)
+        if ellip_gpm is not None:
+            ax.text(0.00, -0.40, r'$\sigma_{\rm asym}$ (ell.: x, y, xy)', ha='left', va='center',
+                    transform=ax.transAxes, fontsize=10)
+            ax.text(1.01, -0.40,
+                    f'{ell_fid_sig_x[-1]:.1f}, {ell_fid_sig_y[-1]:.1f}, {ell_fid_sig_xy[-1]:.1f}',
+                    ha='right', va='center', transform=ax.transAxes, fontsize=10)
 
         rc('font', size=10)
 
         # Velocity asymmetry growth
-        fid_grw = np.array([50., 80., 90.])
-        abs_vel_x = np.absolute(vel_x.compressed())
-        n_vel_x = abs_vel_x.size
-        grw_vel_x = 1-(np.arange(n_vel_x)+1)/n_vel_x
-        fid_vel_x = np.percentile(abs_vel_x, fid_grw)
-
-        abs_vel_y = np.absolute(vel_y.compressed())
-        n_vel_y = abs_vel_y.size
-        grw_vel_y = 1-(np.arange(n_vel_y)+1)/n_vel_y
-        fid_vel_y = np.percentile(abs_vel_y, fid_grw)
-
-        abs_vel_xy = np.absolute(vel_xy.compressed())
-        n_vel_xy = abs_vel_xy.size
-        grw_vel_xy = 1-(np.arange(n_vel_xy)+1)/n_vel_xy
-        fid_vel_xy = np.percentile(abs_vel_xy, fid_grw)
-
         ax = plot.init_ax(fig, [0.38, 0.06, 0.29, 0.36], majlen=6, minlen=3, facecolor='0.95',
                           gridcolor='0.9')
-        ax.set_xlim([0., np.amax([fid_vel_x[-1], fid_vel_y[-1], fid_vel_xy[-1]])*1.2])
+        asym90 = np.array([fid_vel_x[-2], fid_vel_y[-2], fid_vel_xy[-2]])
+        if ellip_gpm is not None:
+            asym90 = np.append(asym90, [ell_fid_vel_x[-2], ell_fid_vel_y[-2], ell_fid_vel_xy[-2]])
+        ax.set_xlim([0., np.amax(asym90)*1.2])
         ax.set_ylim([3e-2, 1.01])
         ax.set_yscale('log')
         ax.yaxis.set_major_formatter(logformatter)
 
-        ax.step(np.sort(abs_vel_x), grw_vel_x, color='C0', where='post', zorder=3)
-        ax.scatter(fid_vel_x, 1-fid_grw/100, marker='.', s=200, color='C0', zorder=4)
-        ax.step(np.sort(abs_vel_y), grw_vel_y, color='C1', where='post', zorder=3)
-        ax.scatter(fid_vel_y, 1-fid_grw/100, marker='.', s=200, color='C1', zorder=4)
-        ax.step(np.sort(abs_vel_xy), grw_vel_xy, color='C2', where='post', zorder=3)
-        ax.scatter(fid_vel_xy, 1-fid_grw/100, marker='.', s=200, color='C2', zorder=4)
+        ax.step(abs_vel_x, grw_vel_x, color='C0', where='post', zorder=3)
+        ax.scatter(fid_vel_x[:3], 1-fid_grw/100, marker='.', s=200, color='C0', zorder=4)
+        ax.step(abs_vel_y, grw_vel_y, color='C1', where='post', zorder=3)
+        ax.scatter(fid_vel_y[:3], 1-fid_grw/100, marker='.', s=200, color='C1', zorder=4)
+        ax.step(abs_vel_xy, grw_vel_xy, color='C2', where='post', zorder=3)
+        ax.scatter(fid_vel_xy[:3], 1-fid_grw/100, marker='.', s=200, color='C2', zorder=4)
+
+        if ellip_gpm is not None:
+            ax.step(ell_abs_vel_x, ell_grw_vel_x,
+                    color='C0', where='post', zorder=3, ls='--', lw=0.5)
+            ax.scatter(ell_fid_vel_x[:3], 1-fid_grw/100,
+                       marker='o', s=100, facecolor='none', edgecolor='C0', zorder=4)
+            ax.step(ell_abs_vel_y, ell_grw_vel_y,
+                    color='C1', where='post', zorder=3, ls='--', lw=0.5)
+            ax.scatter(ell_fid_vel_y[:3], 1-fid_grw/100,
+                       marker='o', s=100, facecolor='none', edgecolor='C1', zorder=4)
+            ax.step(ell_abs_vel_xy, ell_grw_vel_xy,
+                    color='C2', where='post', zorder=3, ls='--', lw=0.5)
+            ax.scatter(ell_fid_vel_xy[:3], 1-fid_grw/100,
+                       marker='o', s=100, facecolor='none', edgecolor='C2', zorder=4)
 
         ax.text(-0.15, 0.5, '1-Growth', ha='center', va='center', transform=ax.transAxes,
                 rotation='vertical')
@@ -1289,34 +1592,36 @@ class Kinematics:
                 color='C2', fontsize=12)
 
         # Velocity dispersion asymmetry growth
-        abs_sig_x = np.absolute(sig_x.compressed())
-        n_sig_x = abs_sig_x.size
-        grw_sig_x = 1-(np.arange(n_sig_x)+1)/n_sig_x
-        fid_sig_x = np.percentile(abs_sig_x, fid_grw)
-
-        abs_sig_y = np.absolute(sig_y.compressed())
-        n_sig_y = abs_sig_y.size
-        grw_sig_y = 1-(np.arange(n_sig_y)+1)/n_sig_y
-        fid_sig_y = np.percentile(abs_sig_y, fid_grw)
-
-        abs_sig_xy = np.absolute(sig_xy.compressed())
-        n_sig_xy = abs_sig_xy.size
-        grw_sig_xy = 1-(np.arange(n_sig_xy)+1)/n_sig_xy
-        fid_sig_xy = np.percentile(abs_sig_xy, fid_grw)
-
         ax = plot.init_ax(fig, [0.68, 0.06, 0.29, 0.36], majlen=6, minlen=3, facecolor='0.95',
                           gridcolor='0.9')
-        ax.set_xlim([0., np.amax([fid_sig_x[-1], fid_sig_y[-1], fid_sig_xy[-1]])*1.2])
+        asym90 = np.array([fid_sig_x[-2], fid_sig_y[-2], fid_sig_xy[-2]])
+        if ellip_gpm is not None:
+            asym90 = np.append(asym90, [ell_fid_sig_x[-2], ell_fid_sig_y[-2], ell_fid_sig_xy[-2]])
+        ax.set_xlim([0., np.amax(asym90)*1.2])
         ax.set_ylim([3e-2, 1.01])
         ax.set_yscale('log')
         ax.yaxis.set_major_formatter(ticker.NullFormatter())
 
-        ax.step(np.sort(abs_sig_x), grw_sig_x, color='C0', where='post', zorder=3)
-        ax.scatter(fid_sig_x, 1-fid_grw/100, marker='.', s=200, color='C0', zorder=4)
-        ax.step(np.sort(abs_sig_y), grw_sig_y, color='C1', where='post', zorder=3)
-        ax.scatter(fid_sig_y, 1-fid_grw/100, marker='.', s=200, color='C1', zorder=4)
-        ax.step(np.sort(abs_sig_xy), grw_sig_xy, color='C2', where='post', zorder=3)
-        ax.scatter(fid_sig_xy, 1-fid_grw/100, marker='.', s=200, color='C2', zorder=4)
+        ax.step(abs_sig_x, grw_sig_x, color='C0', where='post', zorder=3)
+        ax.scatter(fid_sig_x[:3], 1-fid_grw/100, marker='.', s=200, color='C0', zorder=4)
+        ax.step(abs_sig_y, grw_sig_y, color='C1', where='post', zorder=3)
+        ax.scatter(fid_sig_y[:3], 1-fid_grw/100, marker='.', s=200, color='C1', zorder=4)
+        ax.step(abs_sig_xy, grw_sig_xy, color='C2', where='post', zorder=3)
+        ax.scatter(fid_sig_xy[:3], 1-fid_grw/100, marker='.', s=200, color='C2', zorder=4)
+
+        if ellip_gpm is not None:
+            ax.step(ell_abs_sig_x, ell_grw_sig_x,
+                    color='C0', where='post', zorder=3, ls='--', lw=0.5)
+            ax.scatter(ell_fid_sig_x[:3], 1-fid_grw/100,
+                       marker='o', s=100, facecolor='none', edgecolor='C0', zorder=4)
+            ax.step(ell_abs_sig_y, ell_grw_sig_y,
+                    color='C1', where='post', zorder=3, ls='--', lw=0.5)
+            ax.scatter(ell_fid_sig_y[:3], 1-fid_grw/100,
+                       marker='o', s=100, facecolor='none', edgecolor='C1', zorder=4)
+            ax.step(ell_abs_sig_xy, ell_grw_sig_xy,
+                    color='C2', where='post', zorder=3, ls='--', lw=0.5)
+            ax.scatter(ell_fid_sig_xy[:3], 1-fid_grw/100,
+                       marker='o', s=100, facecolor='none', edgecolor='C2', zorder=4)
 
         ax.text(0.5, -0.08, r'$\Delta \sigma$ [km/s]', ha='center', va='center', transform=ax.transAxes)
         ax.text(0.85, 0.9, r'$\Delta \sigma_x$', ha='left', va='center', transform=ax.transAxes,
@@ -1336,20 +1641,144 @@ class Kinematics:
         # Reset to default style
         pyplot.rcdefaults()
 
-    # TODO: Get the radial profile of the surface brightness, as well?
+    # TODO: 
+    #   - Get the radial profile of the surface brightness, as well?
+    #   - Bin sigma^2 and then take the sqrt instead of binning sigma?
+    #   - Include covariance
     def radial_profiles(self, rstep, xc=0., yc=0., pa=0., inc=0., vsys=0., maj_wedge=30.,
-                        min_wedge=10., vel_mod=None, sig_mod=None):
-        """
+                        min_wedge=10., vel_mod=None, sig_mod=None, vel_beam_corr=None,
+                        sig_beam_corr=None):
+        r"""
         Construct azimuthally averaged radial profiles of the kinematics.
+
+        Radial profiles can be construct for best-fiting model data and/or after
+        applying beam-smearing corrections.
+
+        Beam-smearing corrections are applied as follows:
+
+        .. math::
+
+            V = V_{\rm obs} - V_{\rm beam}
+
+        and
+
+        .. math::
+
+            \sigma^2 = \sigma^2_{\rm obs} - \sigma^2_{\rm beam},
+
+        where :math:`V_{\rm beam}` and :math:`\sigma^2_{\rm beam}` are provided
+        by the ``vel_beam_corr`` and ``sig_beam_corr`` parameters, respectively.
+        Importantly, if model data are provided, **both** the observed and model
+        data are beam corrected.
+
+        The binned quantities are the projected tangential speed
+
+        .. math::
+
+            V_\theta = (V - V_{\rm sys}) / \cos\theta
+
+        for data within the major axis wedge (see ``maj_wedge``), the projected
+        radial speed
+
+        .. math::
+
+            V_R = (V - V_{\rm sys}) / \sin\theta
+
+        for data within the minor axis wedge (see ``min_wedge``), and the
+        observed velocity dispersion at all in-plane azimuths, within the major
+        axis wedge, and within the minor axis wedge.
+
+        .. warning::
+
+            Velocity dispersion averages are currently done linearly.  I.e., the
+            function first computes the sqrt of :attr:`sig_phys2` (ignoring
+            negative values) and then computes the binned data.  This may change
+            to computing the binned data for :math:`\sigma^2`.
+
+        Args:
+            rstep (:obj:`float`):
+                The bin size in arcsec for each radial bin.
+            xc (:obj:`float`, optional):
+                The on-sky x coordinate of the dynamical center.
+            yc (:obj:`float`, optional):
+                The on-sky y coordinate of the dynamical center.
+            pa (:obj:`float`, optional):
+                Galaxy position angle, on-sky from N (+y) through E (+x), in
+                degrees.
+            inc (:obj:`float`, optional):
+                Galaxy inclination in degrees.
+            maj_wedge (:obj:`float`, optional):
+                Half wedge size, in degrees, used to select data near the major
+                axis.  For example, ``maj_wedge=30.`` selects data within a +/-
+                30 degree wedge centered on the major axis.
+            min_wedge (:obj:`float`, optional):
+                Half wedge size, in degrees, used to select data near the minor
+                axis.  For example, ``min_wedge=10.`` selects data within a +/-
+                10 degree wedge centered on the minor axis.
+            vel_mod (`numpy.ndarray`_, optional):
+                Model velocities measured at exactly the same positions as the
+                observed data.  Shape must match :attr:`vel`.  Used to construct
+                binned model data weighted and averaged in an identical way to
+                the observed data.  If beam-smearing corrections are provided
+                (``vel_beam_corr``),
+                **they are also applied to the provided model data!**
+            sig_mod (`numpy.ndarray`_, optional):
+                Model velocity dispersions measured at exactly the same
+                positions as the observed data.  Shape must match
+                :attr:`sig_phys2`.  Used to construct binned model data weighted
+                and averaged in an identical way to the observed data.  If
+                beam-smearing corrections are provided (``sig_beam_corr``),
+                **they are also applied to the provided model data!**
+            vel_beam_corr (`numpy.ndarray`_, optional):
+                Beam-smearing corrections to be applied to the velocity
+                measurements.  See description above.  Shape must match
+                :attr:`vel`. If model data are provided (``vel_mod``), these
+                corrections are applied to **both the observed data and the
+                model**.
+            sig_beam_corr (`numpy.ndarray`_, optional):
+                Beam-smearing corrections to be applied to the velocity
+                dispersion measurements.  See description above.  Shape must
+                match :attr:`sig_phys2`. If model data are provided
+                (``sig_mod``), these corrections are applied to
+                **both the observed data and the model**.
+
+        Returns:
+            :obj:`tuple`: The function returns 31 `numpy.ndarray`_ objects.  The
+            first provides the radius of each bin, which is followed by groups
+            of 6 arrays for each of the following quantities: (1) the mean
+            tangential velocity along the major axis, (2) the mean radial
+            velocity along the minor axis, (3) the mean LOS velocity dispersion
+            at all azimuths, (4) the mean LOS velocity dispersion near the major
+            axis, (5) the mean LOS velocity dispersion near the minor axis.  The
+            6 arrays for each of these quantities provide the error-weighted
+            mean, the error-weighted standard deviation, the total number of
+            measurements in the radial bin, the number included after rejecting
+            outliers, the error-weighted mean model value, and the
+            error-weighted standard deviation of the model values.  Data
+            requiring the model data will be None if the relevant model data are
+            not provided, and all velocity dispersion releted quantities will be
+            None if no velocity dispersion measurements are available.
         """
 
+        # Check input
         if vel_mod is not None and vel_mod.size != self.vel.size:
             raise ValueError('Number of model velocities does not match number of measurements.')
         if sig_mod is not None and sig_mod.size != self.sig_phys2.size:
             raise ValueError('Number of model dispersions does not match number of measurements.')
+        if vel_beam_corr is not None and vel_beam_corr.size != self.vel.size:
+            raise ValueError('Number of velocity beam-smearing corrections does not match number '
+                             'of measurements.')
+        if sig_beam_corr is not None and sig_beam_corr.size != self.sig_phys2.size:
+            raise ValueError('Number of velocity dispersion beam-smearing corrections does not '
+                             'match number of measurements.')
 
         # Disk-plane coordinates
         r, th = projected_polar(self.x - xc, self.y - yc, np.radians(pa), np.radians(inc))
+
+        # Apply beam-smearing corrections if provided
+        _vel = self.vel if vel_beam_corr is None else self.vel - vel_beam_corr
+        _vel_mod = None if vel_mod is None \
+                    else (vel_mod if vel_beam_corr is None else vel_mod - vel_beam_corr)
 
         # Mask for data along the major and minor axes
         major_gpm = select_kinematic_axis(r, th, which='major', r_range='all', wedge=maj_wedge)
@@ -1358,19 +1787,24 @@ class Kinematics:
         # Projected rotation velocities (within the major axis wedge)
         indx = major_gpm & np.logical_not(self.vel_mask)
         vrot_r = r[indx]
-        vrot = (self.vel[indx] - vsys)/np.cos(th[indx])
+        vrot = (_vel[indx] - vsys)/np.cos(th[indx])
         vrot_wgt = self.vel_ivar[indx]*np.cos(th[indx])**2
-        vrot_mod = None if vel_mod is None else (vel_mod[indx] - vsys)/np.cos(th[indx])
+        vrot_mod = None if vel_mod is None else (_vel_mod[indx] - vsys)/np.cos(th[indx])
 
         # Projected radial velocities (within the minor axis wedge)
         indx = minor_gpm & np.logical_not(self.vel_mask)
         vrad_r = r[indx]
-        vrad = (self.vel[indx] - vsys)/np.sin(th[indx])
+        vrad = (_vel[indx] - vsys)/np.sin(th[indx])
         vrad_wgt = self.vel_ivar[indx]*np.sin(th[indx])**2
-        vrad_mod = None if vel_mod is None else (vel_mod[indx] - vsys)/np.sin(th[indx])
+        vrad_mod = None if vel_mod is None else (_vel_mod[indx] - vsys)/np.sin(th[indx])
 
         # Get the binned data
-        binr = np.arange(rstep/2, np.amax(r), rstep)
+        # NOTE: ad hoc maximum radius is meant to mitigate effect of minor axis
+        # points on number radial bins.  This will limit the number of off-axis
+        # points included in galaxies with inclinations > 75 deg.
+        maxr = min(4*np.amax(vrot_r), np.amax(r)) if len(vrot_r) > 0 else np.amax(r)
+        binr = np.array([rstep/2]) if maxr < rstep/2 else np.arange(rstep/2, maxr, rstep)
+#        binr = np.arange(rstep/2, min(4*np.amax(vrot_r), np.amax(r)), rstep)
         binw = np.full(binr.size, rstep, dtype=float)
 
         # Projected Velocity profiles
@@ -1402,33 +1836,39 @@ class Kinematics:
                          None, None, None, None, \
                          None, None
 
+        # Apply beam-smearing corrections if provided
+        _sig_phys2 = self.sig_phys2 if sig_beam_corr is None else self.sig_phys2 - sig_beam_corr
+        _sig_mod = None if sig_mod is None \
+                    else (sig_mod**2 if sig_beam_corr is None else sig_mod**2 - sig_beam_corr)
+
+        # TODO: bin sigma^2 and then take sqrt instead?
         # Convert to corrected dispersion
-        sig = np.sqrt(self.sig_phys2)
-        sigwgt = 4*self.sig_phys2*self.sig_phys2_ivar
+        sig = np.ma.sqrt(_sig_phys2).filled(0.0)
+        sigwgt = 4*np.absolute(_sig_phys2)*self.sig_phys2_ivar
 
         # GPM for all sigma measurements
-        sig_gpm = np.logical_not(self.sig_mask) & (self.sig_phys2 > 0)
+        sig_gpm = np.logical_not(self.sig_mask) & (_sig_phys2 > 0)
 
         # Get all measurements, independent of azimuth
         indx = sig_gpm
         sprof_r = r[indx]
         sprof = sig[indx]
         sprof_wgt = sigwgt[indx]
-        sprof_mod = None if sig_mod is None else sig_mod[indx]
+        sprof_mod = None if sig_mod is None else np.ma.sqrt(_sig_mod[indx]).filled(0.0)
 
         # Get along the major axis
         indx = sig_gpm & major_gpm
         smaj_r = r[indx]
         smaj = sig[indx]
         smaj_wgt = sigwgt[indx]
-        smaj_mod = None if sig_mod is None else sig_mod[indx]
+        smaj_mod = None if sig_mod is None else np.ma.sqrt(_sig_mod[indx]).filled(0.0)
 
         # Get along the minor axis
         indx = sig_gpm & minor_gpm
         smin_r = r[indx]
         smin = sig[indx]
         smin_wgt = sigwgt[indx]
-        smin_mod = None if sig_mod is None else sig_mod[indx]
+        smin_mod = None if sig_mod is None else np.ma.sqrt(_sig_mod[indx]).filled(0.0)
 
         # Dispersion profiles
         _, _, _, _, _, _, _, sprof_ewmean, sprof_ewsdev, _, sprof_ntot, sprof_nbin, sprof_bin_gpm \
@@ -1462,5 +1902,4 @@ class Kinematics:
                      smajm_ewmean, smajm_ewsdev, \
                      smin_ewmean, smin_ewsdev, smin_ntot, smin_nbin, \
                      sminm_ewmean, sminm_ewsdev
-
 

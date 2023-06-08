@@ -229,7 +229,7 @@ def is_positive_definite(mat, quiet=True, quick=True):
     Returns:
         :obj:`bool`: Flag that matrix is positive definite.
     """
-    _mat = mat.toarray() if isinstance(mat, sparse.csr.csr_matrix) else mat
+    _mat = mat.toarray() if isinstance(mat, sparse.csr_matrix) else mat
 
     if quick:
         try:
@@ -273,7 +273,7 @@ def cinv(mat, check_finite=False, upper=False):
         `numpy.ndarray`_: Inverse or upper-triangle decomposition of the input
         matrix, depending on ``upper``.
     """
-    _mat = mat.toarray() if isinstance(mat, sparse.csr.csr_matrix) else mat
+    _mat = mat.toarray() if isinstance(mat, sparse.csr_matrix) else mat
     # This uses scipy.linalg, not numpy.linalg
     cho = linalg.cholesky(_mat, check_finite=check_finite)
     # Returns an upper triangle matrix that can be used to construct the inverse matrix (see below)
@@ -420,7 +420,9 @@ def construct_ivar_weights(error, eps=None):
     return wgts
 
 
-# TODO: Allow one to include covariance in all the stats functions below?
+# TODO:
+#   - Allow one to include covariance in all the stats functions below?
+#   - Remove weights, only allow errors/covariance?
 
 
 def aggregate_stats(x, y, ye=None, wgts=None, gpm=None, eps=None, fill_value=None):
@@ -481,11 +483,13 @@ def aggregate_stats(x, y, ye=None, wgts=None, gpm=None, eps=None, fill_value=Non
 
     # Weighted statistics
     # TODO: Include covariance
+    #   - Requires lots of error propagation!
     wsum = np.sum(_wgts[indx])
     ewxbin = np.dot(_wgts[indx],x[indx])/wsum
     ewmean = np.dot(_wgts[indx],y[indx])/wsum
     ewsdev = np.dot(_wgts[indx],y[indx]**2)/wsum - ewmean**2
     ewsdev = fill_value if ewsdev < 0 or nbin <= 1 else np.sqrt(ewsdev*nbin/(nbin-1))
+    # TODO: This assumes the weights provided are errors...
     ewerr = np.sqrt(1./wsum)
 
     return uwmed, uwmad, uwxbin, uwmean, uwsdev, ewxbin, ewmean, ewsdev, ewerr, nbin, indx
@@ -892,6 +896,8 @@ def find_largest_coherent_region(a):
         selects pixels that are part of the largest coherent group.
     """
     labels, n = ndimage.label(a, structure=np.ones((3,3), dtype=int))
+    if n == 0:
+        raise ValueError('No coherent regions found!')
     if n == 1:
         return labels == 1
 

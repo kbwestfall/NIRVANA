@@ -147,9 +147,9 @@ def disk_ellipse(r, pa, inc, xc=0., yc=0., num=100):
         r (:obj:`float`):
             The semi-major axis radius of the ellipse
         pa (:obj:`float`):
-            The position angle in degrees (from N through E)
+            The position angle in radians (from N through E)
         inc (:obj:`float`):
-            Disk inclination in degrees (0 degree is face-on)
+            Disk inclination in radians (0 is face-on)
         xc (:obj:`float`, optional):
             The Cartesian x coordinate of the center
         yc (:obj:`float`, optional):

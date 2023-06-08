@@ -69,9 +69,25 @@ def parse_args(options=None):
                         help='The tracer to fit; must be either Gas or Stars.')
     parser.add_argument('--rc', default='HyperbolicTangent', type=str,
                         help='Rotation curve parameterization to use: HyperbolicTangent or PolyEx')
+#    parser.add_argument('--rc_bounds', default=None, nargs='*', type=str,
+#                        help='Lower and upper bounds to use for each rotation curve parameter.  '
+#                             'Function defaults are used if none provided by the user.  The '
+#                             'number of provided bounds *must* be twice the number of '
+#                             'parameters.  The expected order is: lower bound parameter 1, '
+#                             'upper bound parameter 1, lower bound parameter 2, etc.  Any of the '
+#                             'bounds can be set to None to indicate that the code should use the '
+#                             'function default for that bound.')
     parser.add_argument('--dc', default='Exponential', type=str,
                         help='Dispersion profile parameterization to use: Exponential, ExpBase, '
                              'or Const.')
+#    parser.add_argument('--dc_bounds', default=None, nargs='*', type=str,
+#                        help='Lower and upper bounds to use for each dispersion profile '
+#                             'parameter.  Function defaults are used if none provided by the '
+#                             'user.  The number of provided bounds *must* be twice the number of '
+#                             'parameters.  The expected order is: lower bound parameter 1, '
+#                             'upper bound parameter 1, lower bound parameter 2, etc.  Any of the '
+#                             'bounds can be set to None to indicate that the code should use the '
+#                             'function default for that bound.')
     parser.add_argument('--min_vel_snr', default=None, type=float,
                         help='Minimum S/N to include for velocity measurements in fit; S/N is '
                              'calculated as the ratio of the surface brightness to its error')
@@ -167,11 +183,12 @@ def main(args):
 
     # Setup the metadata
     galmeta = manga.MaNGAGlobalPar(args.plate, args.ifu, redux_path=args.redux, dr=args.dr,
-                                   drpall_path=args.root)
+                                   drpall_path=args.root, analysis_path=args.analysis,
+                                   dapall_path=args.root)
     #---------------------------------------------------------------------------
 
     # Run the iterative fit
-    disk, p0, fix, vel_mask, sig_mask \
+    disk, p0, lb, ub, fix, vel_mask, sig_mask \
             = axisym.axisym_iter_fit(galmeta, kin, rctype=args.rc, dctype=args.dc,
                                      fitdisp=args.disp, ignore_covar=not args.covar,
                                      max_vel_err=args.max_vel_err, max_sig_err=args.max_sig_err,
@@ -184,21 +201,24 @@ def main(args):
 
     # Write the output file
     data_file = os.path.join(args.odir, f'{oroot}.fits.gz')
-    axisym.axisym_fit_data(galmeta, kin, p0, disk, data_file, vel_mask, sig_mask)
+    axisym.axisym_fit_data(galmeta, kin, p0, lb, ub, disk, vel_mask, sig_mask, ofile=data_file)
 
     if args.skip_plots:
         return
 
+    # Plot the masking data
+    mask_plot = os.path.join(args.odir, f'{oroot}-mask.png')
+    axisym.axisym_fit_plot_masks(galmeta, kin, disk, vel_mask, sig_mask, ofile=mask_plot)
+
     # Plot the final residuals
     dv_plot = os.path.join(args.odir, f'{oroot}-vdist.png')
     ds_plot = os.path.join(args.odir, f'{oroot}-sdist.png')
-    disk.reject(disp=args.disp, ignore_covar=not args.covar, vel_plot=dv_plot, sig_plot=ds_plot,
-                plots_only=True) 
+    disk.reject(vel_plot=dv_plot, sig_plot=ds_plot, plots_only=True) 
 
     # Plot the fit asymmetry
     asym_plot = os.path.join(args.odir, f'{oroot}-asym.png')
     kin.asymmetry_plot(galmeta=galmeta, xc=disk.par[0], yc=disk.par[1], pa=disk.par[2],
-                       vsys=disk.par[4], fwhm=galmeta.psf_fwhm[1], 
+                       inc=disk.par[3], vsys=disk.par[4], fwhm=galmeta.psf_fwhm[1], 
                        vel_mask=np.logical_not(disk.vel_gpm),
                        sig_mask=None if disk.dc is None else np.logical_not(disk.sig_gpm),
                        ofile=asym_plot)
