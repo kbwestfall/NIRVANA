@@ -34,11 +34,23 @@ def test_manga_gas_kinematics():
 
 
 @requires_remote
+def test_manga_gas_kinematics_deconv():
+    maps_file = remote_data_file('manga-8138-12704-MAPS-{0}.fits.gz'.format(dap_test_daptype))
+    cube_file = remote_data_file('manga-8138-12704-LOGCUBE.fits.gz')
+
+    kin = manga.MaNGAGasKinematics(maps_file, cube_file=cube_file, deconvolve_sb=True)
+    sb = kin.remap('sb')
+    grid_sb = numpy.ma.MaskedArray(kin.grid_sb, mask=sb.mask.copy())
+
+    assert numpy.ma.sqrt(numpy.ma.mean((sb - grid_sb)**2)) > 1, 'Deconvolved image changed'
+
+
+@requires_remote
 def test_manga_stellar_kinematics():
     maps_file = remote_data_file('manga-8138-12704-MAPS-{0}.fits.gz'.format(dap_test_daptype))
     cube_file = remote_data_file('manga-8138-12704-LOGCUBE.fits.gz')
 
-    kin = manga.MaNGAStellarKinematics(maps_file, cube_file=cube_file, covar=True)
+    kin = manga.MaNGAStellarKinematics(maps_file, cube_file=cube_file) #, covar=True)
     _vel = kin.remap('vel', masked=False)
 
     # Check that the input map is correctly reproduced
@@ -49,6 +61,18 @@ def test_manga_stellar_kinematics():
     # numpy.array_equal because the matrix multiplication used by bin()
     # leads to differences that are of order the numerical precision.
     assert numpy.allclose(kin.bin(_vel), kin.vel), 'Rebinning is bad'
+
+
+@requires_remote
+def test_manga_stellar_kinematics_deconv():
+    maps_file = remote_data_file('manga-8138-12704-MAPS-{0}.fits.gz'.format(dap_test_daptype))
+    cube_file = remote_data_file('manga-8138-12704-LOGCUBE.fits.gz')
+
+    kin = manga.MaNGAStellarKinematics(maps_file, cube_file=cube_file, deconvolve_sb=True)
+    sb = kin.remap('sb')
+    grid_sb = numpy.ma.MaskedArray(kin.grid_sb, mask=sb.mask.copy())
+
+    assert numpy.ma.sqrt(numpy.ma.mean((sb - grid_sb)**2)) > 0.2, 'Deconvolved image changed'
 
 
 @requires_remote

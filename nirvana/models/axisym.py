@@ -1291,6 +1291,7 @@ def axisym_fit_plot(galmeta, kin, disk, par=None, par_err=None, fix=None, ofile=
     # Rebuild the 2D maps
     sb_map = kin.remap('sb')
     snr_map = sb_map * np.ma.sqrt(kin.remap('sb_ivar', mask=kin.sb_mask))
+    grid_sb_map = np.ma.MaskedArray(kin.grid_sb, mask=np.ma.getmaskarray(sb_map).copy())
     v_map = kin.remap('vel')
     v_err_map = np.ma.power(kin.remap('vel_ivar', mask=kin.vel_mask), -0.5)
     s_map = np.ma.sqrt(kin.remap('sig_phys2', mask=kin.sig_mask))
@@ -1402,7 +1403,7 @@ def axisym_fit_plot(galmeta, kin, disk, par=None, par_err=None, fix=None, ofile=
 
     #-------------------------------------------------------------------
     # Surface-brightness
-    sb_lim = np.power(10.0, growth_lim(np.ma.log10(sb_map), 0.90, 1.05))
+    sb_lim = np.power(10.0, growth_lim(np.ma.log10(grid_sb_map), 0.90, 1.05))
     sb_lim = atleast_one_decade(sb_lim)
     
     ax = plot.init_ax(fig, [0.02, 0.775, 0.19, 0.19])
@@ -1414,7 +1415,7 @@ def axisym_fit_plot(galmeta, kin, disk, par=None, par_err=None, fix=None, ofile=
     ax.xaxis.set_major_formatter(ticker.NullFormatter())
     ax.add_patch(patches.Circle((0.1, 0.1), fwhm/np.diff(skylim)[0]/2, transform=ax.transAxes,
                                 facecolor='0.7', edgecolor='k', zorder=4))
-    im = ax.imshow(sb_map, origin='lower', interpolation='nearest', cmap='inferno',
+    im = ax.imshow(grid_sb_map, origin='lower', interpolation='nearest', cmap='inferno',
                    extent=extent, norm=colors.LogNorm(vmin=sb_lim[0], vmax=sb_lim[1]), zorder=4)
     # Mark the fitted dynamical center
     ax.scatter(disk.par[0], disk.par[1], marker='+', color='k', s=40, lw=1, zorder=5)
