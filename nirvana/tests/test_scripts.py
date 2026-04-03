@@ -17,19 +17,12 @@ def test_manga_axisym_gas():
         shutil.rmtree(odir)
 
     # Test basic gas fit
-    args = manga_axisym.parse_args(['8138', '12704', '--root', remote_data_file(), '--odir', odir,
-                                    '-t', 'Gas', '--min_vel_snr', '5', '--min_sig_snr', '5',
-                                    '--max_vel_err', '100', '--max_sig_err', '100',
-                                    '--min_unmasked', '10', '--coherent', '--skip_plots'])
-    manga_axisym.main(args)
-
-#    args = manga_axisym.parse_args(['8138', '12704', '--root', remote_data_file(), '--odir', odir,
-#                                    '-t', 'Gas', '--min_vel_snr', '5', '--min_sig_snr', '5',
-#                                    '--max_vel_err', '100', '--max_sig_err', '100',
-#                                    '--min_unmasked', '10', '--coherent', '--covar', '--skip_plots'])
-#    manga_axisym.main(args)
-#    embed()
-#    exit()
+    args = manga_axisym.MaNGAAxisym.parse_args([
+        '8138', '12704', '--root', remote_data_file(), '--odir', odir, '-t', 'Gas',
+        '--min_vel_snr', '5', '--min_sig_snr', '5', '--max_vel_err', '100', '--max_sig_err', '100',
+        '--min_unmasked', '10', '--coherent', '--skip_plots'
+    ])
+    manga_axisym.MaNGAAxisym.main(args)
 
     main_output_file = os.path.join(odir, 'nirvana-manga-axisym-8138-12704-Gas.fits.gz')
     assert os.path.isfile(main_output_file), 'Output file not created.'
@@ -48,12 +41,12 @@ def test_manga_axisym_gas_deconv():
         shutil.rmtree(odir)
 
     # Test basic gas deconvolve fit
-    args = manga_axisym.parse_args(['8138', '12704', '--root', remote_data_file(), '--odir', odir,
-                                    '-t', 'Gas', '--min_vel_snr', '5', '--min_sig_snr', '5',
-                                    '--max_vel_err', '100', '--max_sig_err', '100',
-                                    '--min_unmasked', '10', '--coherent', '--deconv',
-                                    '--skip_plots'])
-    manga_axisym.main(args)
+    args = manga_axisym.MaNGAAxisym.parse_args([
+        '8138', '12704', '--root', remote_data_file(), '--odir', odir, '-t', 'Gas',
+        '--min_vel_snr', '5', '--min_sig_snr', '5', '--max_vel_err', '100', '--max_sig_err', '100',
+        '--min_unmasked', '10', '--coherent', '--deconv', '--skip_plots'
+    ])
+    manga_axisym.MaNGAAxisym.main(args)
 
     main_output_file = os.path.join(odir, 'nirvana-manga-axisym-8138-12704-Gas.fits.gz')
     assert os.path.isfile(main_output_file), 'Output file not created.'
@@ -72,11 +65,12 @@ def test_manga_axisym_str():
         shutil.rmtree(odir)
 
     # Test basic gas deconvolve fit
-    args = manga_axisym.parse_args(['8138', '12704', '--root', remote_data_file(), '--odir', odir,
-                                    '-t', 'Stars', '--min_vel_snr', '5', '--min_sig_snr', '5',
-                                    '--max_vel_err', '100', '--max_sig_err', '100',
-                                    '--min_unmasked', '10', '--coherent', '--skip_plots'])
-    manga_axisym.main(args)
+    args = manga_axisym.MaNGAAxisym.parse_args([
+        '8138', '12704', '--root', remote_data_file(), '--odir', odir, '-t', 'Stars',
+        '--min_vel_snr', '5', '--min_sig_snr', '5', '--max_vel_err', '100', '--max_sig_err', '100',
+        '--min_unmasked', '10', '--coherent', '--skip_plots'
+    ])
+    manga_axisym.MaNGAAxisym.main(args)
 
     main_output_file = os.path.join(odir, 'nirvana-manga-axisym-8138-12704-Stars.fits.gz')
     assert os.path.isfile(main_output_file), 'Output file not created.'
@@ -95,12 +89,12 @@ def test_manga_axisym_str_deconv():
         shutil.rmtree(odir)
 
     # Test basic gas deconvolve fit
-    args = manga_axisym.parse_args(['8138', '12704', '--root', remote_data_file(), '--odir', odir,
-                                    '-t', 'Stars', '--min_vel_snr', '5', '--min_sig_snr', '5',
-                                    '--max_vel_err', '100', '--max_sig_err', '100',
-                                    '--min_unmasked', '10', '--coherent', '--deconv',
-                                    '--skip_plots'])
-    manga_axisym.main(args)
+    args = manga_axisym.MaNGAAxisym.parse_args([
+        '8138', '12704', '--root', remote_data_file(), '--odir', odir, '-t', 'Stars',
+        '--min_vel_snr', '5', '--min_sig_snr', '5', '--max_vel_err', '100', '--max_sig_err', '100',
+        '--min_unmasked', '10', '--coherent', '--deconv', '--skip_plots'
+    ])
+    manga_axisym.MaNGAAxisym.main(args)
 
     main_output_file = os.path.join(odir, 'nirvana-manga-axisym-8138-12704-Stars.fits.gz')
     assert os.path.isfile(main_output_file), 'Output file not created.'
@@ -118,15 +112,14 @@ def test_manga_asymdrift():
     if os.path.isdir(odir):
         shutil.rmtree(odir)
 
-    args = manga_asymdrift.parse_args(['8138', '12704', '--root', remote_data_file(),
-                                       '--odir', odir,
-                                       '--gas_min_vel_snr', '5', '--gas_min_sig_snr', '5',
-                                       '--gas_max_vel_err', '100', '--gas_max_sig_err', '100',
-                                       '--str_min_vel_snr', '5', '--str_min_sig_snr', '10',
-                                       '--str_max_vel_err', '100', '--str_max_sig_err', '100',
-                                       '--min_unmasked', '10', '--coherent', '--skip_plots'])
-                                       #]) #, '--verbose', '2'])
-    manga_asymdrift.main(args)
+    args = manga_asymdrift.MaNGAAsymDrift.parse_args([
+        '8138', '12704', '--root', remote_data_file(), '--odir', odir, '--gas_min_vel_snr', '5',
+        '--gas_min_sig_snr', '5', '--gas_max_vel_err', '100', '--gas_max_sig_err', '100',
+        '--str_min_vel_snr', '5', '--str_min_sig_snr', '10', '--str_max_vel_err', '100',
+        '--str_max_sig_err', '100', '--min_unmasked', '10', '--coherent', '--skip_plots'
+        #, '--verbose', '2'
+    ])
+    manga_asymdrift.MaNGAAsymDrift.main(args)
 
     main_output_file = os.path.join(odir, 'nirvana-manga-asymdrift-8138-12704.fits.gz')
     assert os.path.isfile(main_output_file), 'Output file not created.'
@@ -146,16 +139,14 @@ def test_manga_asymdrift_dcnv():
     if os.path.isdir(odir):
         shutil.rmtree(odir)
 
-    args = manga_asymdrift.parse_args(['8138', '12704', '--root', remote_data_file(),
-                                       '--odir', odir,
-                                       '--gas_min_vel_snr', '5', '--gas_min_sig_snr', '5',
-                                       '--gas_max_vel_err', '100', '--gas_max_sig_err', '100',
-                                       '--str_min_vel_snr', '5', '--str_min_sig_snr', '10',
-                                       '--str_max_vel_err', '100', '--str_max_sig_err', '100',
-                                       '--min_unmasked', '10', '--coherent', '--deconv',
-                                       '--skip_plots'])
-                                       #]) #, '--verbose', '2'])
-    manga_asymdrift.main(args)
+    args = manga_asymdrift.MaNGAAsymDrift.parse_args([
+        '8138', '12704', '--root', remote_data_file(), '--odir', odir, '--gas_min_vel_snr', '5',
+        '--gas_min_sig_snr', '5', '--gas_max_vel_err', '100', '--gas_max_sig_err', '100',
+        '--str_min_vel_snr', '5', '--str_min_sig_snr', '10', '--str_max_vel_err', '100',
+        '--str_max_sig_err', '100', '--min_unmasked', '10', '--coherent', '--deconv',
+        '--skip_plots' #, '--verbose', '2'
+    ])
+    manga_asymdrift.MaNGAAsymDrift.main(args)
 
     main_output_file = os.path.join(odir, 'nirvana-manga-asymdrift-8138-12704.fits.gz')
     assert os.path.isfile(main_output_file), 'Output file not created.'
