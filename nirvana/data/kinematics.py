@@ -10,9 +10,7 @@ from IPython import embed
 
 import numpy as np
 from scipy import sparse
-from scipy import linalg
-from astropy.stats import sigma_clip
-from matplotlib import pyplot, rc, patches, ticker, colors
+from matplotlib import pyplot, rc, patches, ticker
 import warnings
 
 from .bin2d import Bin2D
@@ -20,7 +18,7 @@ from .util import gaussian_deviates, growth_lim, impose_positive_definite
 from .util import select_kinematic_axis, bin_stats, find_largest_coherent_region
 from ..util import plot
 from ..models import asymmetry
-from ..models.beam import construct_beam, ConvolveFFTW, smear
+from ..models.beam import construct_beam
 from ..models.geometry import projected_polar, disk_ellipse
 
 

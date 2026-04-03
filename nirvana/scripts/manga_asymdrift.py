@@ -10,10 +10,7 @@ from IPython import embed
 import numpy as np
 from matplotlib import pyplot
 
-from astropy.io import fits
-
 from ..data import manga
-from ..util import fileio
 from ..models import axisym
 from ..models import multitrace
 

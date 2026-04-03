@@ -24,7 +24,6 @@ import numpy as np
 
 from pydl.pydlutils.yanny import yanny
 
-# from mangadap.par.parset import ParSet
 
 class BitMask:
     """

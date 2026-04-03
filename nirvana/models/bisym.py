@@ -5,19 +5,12 @@ Module with classes and functions used to fit an bisymmetric disk to a set of ki
 .. include:: ../include/links.rst
 """
 
-import warnings
-
 import multiprocessing as mp
 
 from IPython import embed
 
 import numpy as np
 from scipy import stats
-
-try:
-    from tqdm import tqdm
-except:
-    tqdm = None
 
 try:
     import pyfftw
@@ -34,9 +27,6 @@ from ..data.fitargs import FitArgs
 from ..models.higher_order import bisym_model
 
 from . import oned
-from .util import cov_err
-from ..data.scatter import IntrinsicScatter
-from ..data.util import impose_positive_definite, inverse
 
 from .thindisk import ThinDisk
 

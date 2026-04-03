@@ -11,7 +11,6 @@ from IPython import embed
 import numpy as np
 from astropy.io import fits
 
-import nirvana
 from nirvana.data.manga import manga_paths, manga_file_names, MaNGAGlobalPar
 from nirvana.models.axisym import AxisymmetricDisk, _fit_meta_dtype
 from nirvana.models.oned import Func1D

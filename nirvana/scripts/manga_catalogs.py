@@ -6,8 +6,6 @@ import argparse
 
 from IPython import embed
 
-from matplotlib import pyplot
-
 from ..data import manga
 
 def parse_args(options=None):

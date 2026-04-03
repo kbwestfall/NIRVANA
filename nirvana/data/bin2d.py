@@ -137,7 +137,7 @@ class VoronoiBinning:
         except:
             warnings.warn('Binning algorithm has raised an exception.  Assume this is because '
                           'all the spaxels should be in the same bin.')
-            binid = numpy.zeros(signal.size)
+            binid = np.zeros(signal.size)
 
         return binid
 

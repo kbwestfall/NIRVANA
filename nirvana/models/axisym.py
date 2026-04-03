@@ -19,10 +19,9 @@ from .geometry import projected_polar, deriv_projected_polar, disk_ellipse
 from .beam import smear, deriv_smear
 from . import oned 
 from . import asymmetry
-from ..data.kinematics import Kinematics
 from ..data.scatter import IntrinsicScatter
-from ..data.util import inverse, find_largest_coherent_region
-from ..data.util import select_kinematic_axis, bin_stats, growth_lim, atleast_one_decade
+from ..data.util import inverse
+from ..data.util import select_kinematic_axis, growth_lim, atleast_one_decade
 from ..util import plot
 from ..util import fileio
 

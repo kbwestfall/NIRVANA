@@ -7,12 +7,9 @@ import warnings
 
 from IPython import embed
 
+from matplotlib import pyplot
 import numpy as np
 from scipy import sparse, linalg, stats, special, ndimage, spatial
-# Only used for debugging...
-from matplotlib import pyplot
-
-from astropy.stats import sigma_clip
 
 from ..models import geometry
 

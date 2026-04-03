@@ -7,10 +7,7 @@ Methods for geometric projection.
 from IPython import embed
 
 import numpy as np
-from scipy.spatial import KDTree
 
-#import warnings
-#warnings.simplefilter('error', RuntimeWarning)
 
 def rotate(x, y, rot, clockwise=False):
     r"""

@@ -3,7 +3,6 @@ from IPython import embed
 
 import numpy as np
 
-from scipy import stats, special
 from nirvana.data import manga
 from nirvana.data import util
 from nirvana.data import scatter

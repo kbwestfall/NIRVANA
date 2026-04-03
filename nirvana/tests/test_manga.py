@@ -5,9 +5,6 @@ import numpy as np
 
 from astropy.io import fits
 
-from scipy import signal
-from astropy import convolution
-
 from nirvana.data import manga
 from nirvana.data import util
 from nirvana.tests.util import remote_data_file, requires_remote

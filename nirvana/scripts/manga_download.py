@@ -1,12 +1,9 @@
 """
 Script to download MaNGA data needed to run nirvana.
 """
-import os
 import argparse
 
 from IPython import embed
-
-from matplotlib import pyplot
 
 from ..data import manga
 

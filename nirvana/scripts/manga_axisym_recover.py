@@ -22,8 +22,8 @@ from ..models import geometry
 from ..models.beam import gauss2d_kernel, ConvolveFFTW
 from ..util import fileio
 
-import warnings
-warnings.simplefilter('error', RuntimeWarning)
+#import warnings
+#warnings.simplefilter('error', RuntimeWarning)
 
 def parse_args(options=None):
 

@@ -10,9 +10,7 @@ Module with the derived instances for MaNGA kinematics.
 .. include:: ../include/links.rst
 """
 from importlib import resources
-from pathlib import Path
 import os
-import glob
 import warnings
 import netrc
 
@@ -22,7 +20,7 @@ from IPython import embed
 import numpy as np
 from scipy import sparse
 import matplotlib.image
-from matplotlib import pyplot, rc, patches, ticker, colors
+from matplotlib import pyplot, patches, ticker
 
 from astropy.io import fits
 from astropy.wcs import WCS

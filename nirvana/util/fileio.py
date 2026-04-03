@@ -10,27 +10,15 @@ import sys
 import os
 import gzip
 import shutil
-from glob import glob
-import traceback
-import pickle
 
 import numpy as np
-import matplotlib.pyplot as plt
-import multiprocessing as mp
 
 from astropy.io import fits
-from astropy.table import Table,Column
-from tqdm import tqdm
 
 # For versioning
 import scipy
 import astropy
 from .. import __version__
-
-from ..models.higher_order import bisym_model
-from ..models.geometry import projected_polar
-from ..models.asymmetry import asymmetry
-from ..data.manga import MaNGAStellarKinematics, MaNGAGasKinematics
 
 def init_record_array(shape, dtype):
     r"""
