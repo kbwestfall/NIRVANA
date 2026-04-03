@@ -1,8 +1,0 @@
-# nirvana documentation requirements
-
--r requirements.txt
-
-Sphinx>=3.0.4
-sphinx-automodapi>=0.12
-sphinx-rtd-theme>=0.5
-

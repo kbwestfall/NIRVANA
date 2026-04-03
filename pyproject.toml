@@ -1,0 +1,141 @@
+[project]
+name = "nirvana"
+dynamic = ["version"]
+authors = [
+    { name = "Brian DiGiorgio Zanger", email = "bzanger1@swarthmore.edu" },
+    { name = "Kyle B. Westfall", email = "westfall@ucolick.org" }
+]
+license = {file = "LICENSE.md"}
+description = "General modeling of 2D kinematic maps of disk galaxies"
+keywords = [
+    "astronomy",
+    "disk galaxies",
+    "kinematics",
+    "modeling",
+]
+readme = "README.md"
+classifiers = [
+    'Development Status :: 4 - Beta',
+    'Intended Audience :: Science/Research',
+    'License :: OSI Approved :: BSD License',
+    'Natural Language :: English',
+    'Operating System :: OS Independent',
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 3.7',
+    'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    'Topic :: Documentation :: Sphinx',
+    'Topic :: Scientific/Engineering :: Astronomy',
+    'Topic :: Software Development :: Libraries :: Python Modules',
+    'Topic :: Software Development :: User Interfaces'
+]
+requires-python = ">=3.7"
+dependencies = [ 
+    "numpy>=2.4.1",
+    "astropy>=7.0",
+    "packaging>=22.0",
+    "scipy>=1.9",
+    "matplotlib>=3.7",
+    "IPython>=8.0.0",
+    "corner>=2.1",
+    "dynesty>=1.0",
+    "pydl>=0.7.0",
+    "tqdm>=4.57",
+    "requests>=2.25",
+    "vorbin==3.1.4",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-astropy",
+    "tox",
+    "pytest-cov",
+    "coverage",
+]
+docs = [
+    "sphinx>6",
+    "docutils<0.22",
+    "sphinx-automodapi",
+    "sphinx-design",
+    "sphinx_rtd_theme==3.0.0",
+    "sphinx-autodoc-typehints>3.2",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-astropy",
+    "tox",
+    "pytest-cov",
+    "coverage",
+    "sphinx>6",
+    "docutils<0.22",
+    "sphinx-automodapi",
+    "sphinx-design",
+    "sphinx_rtd_theme==3.0.0",
+    "sphinx-autodoc-typehints>3.2",
+]
+
+[project.urls]
+Repository = "https://github.com/briandigiorgio/NIRVANA"
+
+[project.scripts]
+
+[build-system]
+requires = [
+    "setuptools",
+    "setuptools_scm",
+    "oldest-supported-numpy",
+    "cython>=0.29.14"
+]
+build-backend = 'setuptools.build_meta'
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages]
+find = {}
+
+[tool.setuptools_scm]
+version_file = "nirvana/version.py"
+
+[tool.pytest.ini_options]
+minversion = 7.0
+testpaths = [
+    "nirvana",
+]
+
+[tool.coverage]
+
+    [tool.coverage.run]
+        omit = [
+            "nirvana/_astropy_init*",
+            "nirvana/conftest.py",
+            "nirvana/*setup_package*",
+            "nirvana/tests/*",
+            "nirvana/*/tests/*",
+            "nirvana/extern/*",
+            "nirvana/version*",
+            "*/nirvana/_astropy_init*",
+            "*/nirvana/conftest.py",
+            "*/nirvana/*setup_package*",
+            "*/nirvana/tests/*",
+            "*/nirvana/*/tests/*",
+            "*/nirvana/extern/*",
+            "*/nirvana/version*",
+        ]
+
+    [tool.coverage.report]
+        exclude_lines = [
+            "pragma: no cover",
+            "except ImportError",
+            "raise AssertionError",
+            "raise NotImplementedError",
+            "'def main(.*):'",
+            "pragma: py{ignore_python_version}",
+            "def _ipython_key_completions_",
+        ]
+
