@@ -1134,11 +1134,11 @@ class Kinematics:
         of data, you can generate a mock dataset based on the
         :class:`~nirvana.models.axisym.AxisymmetricDisk`::
 
-            import numpy
+            import numpy as np
             from nirvana.models.oned import HyperbolicTangent, Exponential
             from nirvana.models.axisym import AxisymmetricDisk
             disk = AxisymmetricDisk(rc=HyperbolicTangent(), dc=Exponential())
-            p0 = numpy.array([-0.2, -0.08, 166.3, 53.0, 25.6, 217.0, 2.82, 189.7, 16.2])
+            p0 = np.array([-0.2, -0.08, 166.3, 53.0, 25.6, 217.0, 2.82, 189.7, 16.2])
             noisefree_mock = disk.mock_observation(p0, kin=kin)
 
         And then generate deviates using this method and add them to a new

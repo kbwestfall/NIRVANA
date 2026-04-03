@@ -319,7 +319,7 @@ def boxcar_average(arr, boxcar):
     # Perform the boxcar average over each axis and return the result
     _arr = arr.copy()
     for axis, box in zip(range(arr.ndim), _boxcar):
-        _arr = numpy.add.reduceat(_arr, numpy.arange(0, _arr.shape[axis], box), axis=axis)/box
+        _arr = np.add.reduceat(_arr, np.arange(0, _arr.shape[axis], box), axis=axis)/box
     return _arr
 
 

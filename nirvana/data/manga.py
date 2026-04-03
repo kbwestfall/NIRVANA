@@ -9,13 +9,13 @@ Module with the derived instances for MaNGA kinematics.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+from importlib import resources
 from pathlib import Path
 import os
 import glob
 import warnings
 import netrc
 
-from pkg_resources import resource_filename
 
 from IPython import embed
 
@@ -572,8 +572,8 @@ def sdss_bitmask(bitgroup):
         :class:`~nirvana.util.bitmask.BitMask`: Instance used to parse SDSS
         maskbits.
     """
-    sdssMaskbits = os.path.join(resource_filename('nirvana', 'config'), 'sdss', 'sdssMaskbits.par')
-    return BitMask.from_par_file(sdssMaskbits, bitgroup)
+    sdssMaskbits = resources.files('nirvana') / 'config' / 'sdss' / 'sdssMaskbits.par'
+    return BitMask.from_par_file(str(sdssMaskbits), bitgroup)
 
 
 def parse_manga_targeting_bits(mngtarg1, mngtarg3=None):

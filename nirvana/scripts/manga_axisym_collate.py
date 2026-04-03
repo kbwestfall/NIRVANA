@@ -229,12 +229,12 @@ def main(args):
     #               the output files exist
     #   QUAL:       A bitmask quality flag pulled from the primary header of the
     #               primary fit output file; see nirvana.models.thindisk.ThinDiskGlobalBitMask
-    _gas_dtype += [('FINISHED', np.int), ('QUAL', np.int)]
-    _str_dtype += [('FINISHED', np.int), ('QUAL', np.int)]
+    _gas_dtype += [('FINISHED', int), ('QUAL', int)]
+    _str_dtype += [('FINISHED', int), ('QUAL', int)]
     if args.asymdrift:
         _ad_dtype = _ad_meta_dtype(max_adnr)
         ad_meta_keys = [d[0] for d in _ad_dtype]
-        _ad_dtype += [('FINISHED', np.int), ('QUAL', np.int)]
+        _ad_dtype += [('FINISHED', int), ('QUAL', int)]
 
     # Read the DRPall file
     with fits.open(_drpall_file) as hdu:

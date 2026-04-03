@@ -6,7 +6,7 @@ import warnings
 warnings.simplefilter("ignore", UserWarning)
 warnings.simplefilter("ignore", RuntimeWarning)
 
-import numpy
+import numpy as np
 
 from astropy.io import fits
 
@@ -42,42 +42,42 @@ def test_flagging():
     shape = (n,n)
 
     image_bm = ImageBitMask()
-    mask = numpy.zeros(shape, dtype=image_bm.minimum_dtype())
+    mask = np.zeros(shape, dtype=image_bm.minimum_dtype())
 
-    cosmics_indx = numpy.zeros(shape, dtype=bool)
-    cosmics_indx[numpy.random.randint(0,high=n,size=100),
-                 numpy.random.randint(0,high=n,size=100)] = True
+    cosmics_indx = np.zeros(shape, dtype=bool)
+    cosmics_indx[np.random.randint(0,high=n,size=100),
+                 np.random.randint(0,high=n,size=100)] = True
     mask[cosmics_indx] = image_bm.turn_on(mask[cosmics_indx], 'COSMIC')
 
-    saturated_indx = numpy.zeros(shape, dtype=bool)
-    saturated_indx[numpy.random.randint(0,high=n,size=100),
-                   numpy.random.randint(0,high=n,size=100)] = True
+    saturated_indx = np.zeros(shape, dtype=bool)
+    saturated_indx[np.random.randint(0,high=n,size=100),
+                   np.random.randint(0,high=n,size=100)] = True
     mask[saturated_indx] = image_bm.turn_on(mask[saturated_indx], 'SATURATED')
 
-    assert numpy.sum(image_bm.flagged(mask, flag='BPM')) == 0
-    assert numpy.sum(image_bm.flagged(mask, flag='COSMIC')) == numpy.sum(cosmics_indx)
-    assert numpy.sum(image_bm.flagged(mask, flag='SATURATED')) == numpy.sum(saturated_indx)
+    assert np.sum(image_bm.flagged(mask, flag='BPM')) == 0
+    assert np.sum(image_bm.flagged(mask, flag='COSMIC')) == np.sum(cosmics_indx)
+    assert np.sum(image_bm.flagged(mask, flag='SATURATED')) == np.sum(saturated_indx)
 
     assert image_bm.flagged_bits(1) == ['BPM']
     assert image_bm.flagged_bits(2) == ['COSMIC']
     assert image_bm.flagged_bits(4) == ['SATURATED']
 
-    unique_flags = numpy.sort(numpy.unique(numpy.concatenate(
-                        [image_bm.flagged_bits(b) for b in numpy.unique(mask)]))).tolist()
+    unique_flags = np.sort(np.unique(np.concatenate(
+                        [image_bm.flagged_bits(b) for b in np.unique(mask)]))).tolist()
     assert unique_flags == ['COSMIC', 'SATURATED']
 
     mask[saturated_indx] = image_bm.turn_off(mask[saturated_indx], 'SATURATED')
-    assert numpy.sum(image_bm.flagged(mask, flag='COSMIC')) == numpy.sum(cosmics_indx)
-    assert numpy.sum(image_bm.flagged(mask, flag='SATURATED')) == 0
+    assert np.sum(image_bm.flagged(mask, flag='COSMIC')) == np.sum(cosmics_indx)
+    assert np.sum(image_bm.flagged(mask, flag='SATURATED')) == 0
 
-    unique_flags = numpy.sort(numpy.unique(numpy.concatenate(
-                        [image_bm.flagged_bits(b) for b in numpy.unique(mask)]))).tolist()
+    unique_flags = np.sort(np.unique(np.concatenate(
+                        [image_bm.flagged_bits(b) for b in np.unique(mask)]))).tolist()
     assert unique_flags == ['COSMIC']
 
     b_indx, c_indx, s_indx = image_bm.unpack(mask)
-    assert numpy.sum(b_indx) == 0
-    assert numpy.sum(c_indx) == numpy.sum(cosmics_indx)
-    assert numpy.sum(s_indx) == 0
+    assert np.sum(b_indx) == 0
+    assert np.sum(c_indx) == np.sum(cosmics_indx)
+    assert np.sum(s_indx) == 0
 
 
 def test_hdr_io():

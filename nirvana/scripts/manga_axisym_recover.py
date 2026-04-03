@@ -144,29 +144,29 @@ def _fit_meta_dtype(par_names):
         :obj:`list`: The list of tuples providing the name, data type, and shape
         of each `numpy.recarray`_ column.
     """
-    gp = [(f'G_{n}'.upper(), np.float) for n in par_names]
-    bp = [(f'F_{n}'.upper(), np.float) for n in par_names]
-    bpe = [(f'E_{n}'.upper(), np.float) for n in par_names]
+    gp = [(f'G_{n}'.upper(), float) for n in par_names]
+    bp = [(f'F_{n}'.upper(), float) for n in par_names]
+    bpe = [(f'E_{n}'.upper(), float) for n in par_names]
     
-    return [('MAPN', np.int),
-            ('IFUSIZE', np.float),
-            ('PIXSCALE', np.float),
-            ('PSFINP', np.float),
-            ('PSFOUT', np.float),
-            ('SNR', np.float),
-            ('BINSNR', np.float),
-            ('REFF', np.float),
-            ('SERSICN', np.float),
-            ('PA', np.float),
-            ('ELL', np.float),
-            ('VNFIT', np.int),
-            ('VCHI2', np.float),
-            ('SNFIT', np.int),
-            ('SCHI2', np.float),
-            ('CHI2', np.float),
-            ('RCHI2', np.float),
-            ('STATUS', np.int),
-            ('SUCCESS', np.int)] + gp + bp + bpe
+    return [('MAPN', int),
+            ('IFUSIZE', float),
+            ('PIXSCALE', float),
+            ('PSFINP', float),
+            ('PSFOUT', float),
+            ('SNR', float),
+            ('BINSNR', float),
+            ('REFF', float),
+            ('SERSICN', float),
+            ('PA', float),
+            ('ELL', float),
+            ('VNFIT', int),
+            ('VCHI2', float),
+            ('SNFIT', int),
+            ('SCHI2', float),
+            ('CHI2', float),
+            ('RCHI2', float),
+            ('STATUS', int),
+            ('SUCCESS', int)] + gp + bp + bpe
 
 
 def main(args):

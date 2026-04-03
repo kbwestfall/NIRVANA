@@ -1,11 +1,7 @@
 
-__version__ = '0.1.2dev'
-__license__ = 'BSD3'
-__author__ = 'Brian DiGiorgio'
-__maintainer__ = 'Brian DiGiorgio'
-__email__ = 'bdigiorg@ucsc.edu'
-__copyright__ = '(c) 2020, Brian DiGiorgio'
-__credits__ = ['Kyle B. Westfall']
+# Set version
+from .version import version
+__version__ = version
 
 def short_warning(message, category, filename, lineno, file=None, line=None):
     """

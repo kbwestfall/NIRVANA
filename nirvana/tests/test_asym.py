@@ -5,7 +5,7 @@ import os
 
 from IPython import embed
 
-import numpy
+import numpy as np
 
 from nirvana.models import geometry
 from nirvana.models import asymmetry
@@ -16,22 +16,22 @@ from nirvana.data import manga
 from nirvana.tests.util import remote_data_file, requires_remote
 
 def test_no_reflection():
-    x, y = numpy.meshgrid(numpy.arange(10), numpy.arange(10))
+    x, y = np.meshgrid(np.arange(10), np.arange(10))
     d, i = asymmetry.symmetric_reflection_map(x.ravel(), y.ravel(), reflect=None)
-    assert numpy.array_equal(i, numpy.arange(x.size)), \
+    assert np.array_equal(i, np.arange(x.size)), \
             'No reflection should just return the input indices.'
 
 
 def test_symmetric_reflection_map():
 
-    x, y = numpy.meshgrid(numpy.arange(10), numpy.arange(10))
+    x, y = np.meshgrid(np.arange(10), np.arange(10))
     d, i = asymmetry.symmetric_reflection_map(x.ravel(), y.ravel())
 
     assert d.shape[0] == i.shape[0] and d.shape[0] == 4, 'Should produce 4 reflections'
 
-    assert numpy.array_equal(d[0], numpy.zeros(x.size, dtype=float)), \
+    assert np.array_equal(d[0], np.zeros(x.size, dtype=float)), \
             'First set should not be reflected, so pixel map should be direct.  Bad distances.'
-    assert numpy.array_equal(i[0], numpy.arange(x.size)), \
+    assert np.array_equal(i[0], np.arange(x.size)), \
             'First set should not be reflected, so pixel map should be direct.  Bad indices.'
 
 
@@ -40,15 +40,15 @@ def test_axisymmetric_symmetry():
     ifusize = 22
     pixelscale = 0.5
     width_buffer = 10
-    n = int(numpy.floor(ifusize/pixelscale)) + width_buffer
+    n = int(np.floor(ifusize/pixelscale)) + width_buffer
     if n % 2 != 0:
         n += 1
-    x = numpy.arange(n, dtype=float)[::-1] - n//2
-    y = numpy.arange(n, dtype=float) - n//2
-    x, y = numpy.meshgrid(pixelscale*x, pixelscale*y)
+    x = np.arange(n, dtype=float)[::-1] - n//2
+    y = np.arange(n, dtype=float) - n//2
+    x, y = np.meshgrid(pixelscale*x, pixelscale*y)
     ifu_mask = geometry.point_inside_polygon(geometry.hexagon_vertices(d=ifusize),
-                                             numpy.column_stack((x.ravel(), y.ravel())))
-    ifu_mask = numpy.logical_not(ifu_mask).reshape(x.shape)    
+                                             np.column_stack((x.ravel(), y.ravel())))
+    ifu_mask = np.logical_not(ifu_mask).reshape(x.shape)    
 
     disk = axisym.AxisymmetricDisk(rc=oned.HyperbolicTangent(), dc=oned.Exponential())
     
@@ -62,14 +62,14 @@ def test_axisymmetric_symmetry():
                                               rotation=-disk.par[2])
     # Reflection order is None, x, y, xy
     maxd = 0.4
-    v_x = numpy.ma.MaskedArray(v.ravel()[i[1]], mask=d[1] > maxd).reshape(v.shape)
-    v_y = numpy.ma.MaskedArray(-v.ravel()[i[2]], mask=d[2] > maxd).reshape(v.shape)
-    v_xy = numpy.ma.MaskedArray(-v.ravel()[i[3]], mask=d[3] > maxd).reshape(v.shape)
+    v_x = np.ma.MaskedArray(v.ravel()[i[1]], mask=d[1] > maxd).reshape(v.shape)
+    v_y = np.ma.MaskedArray(-v.ravel()[i[2]], mask=d[2] > maxd).reshape(v.shape)
+    v_xy = np.ma.MaskedArray(-v.ravel()[i[3]], mask=d[3] > maxd).reshape(v.shape)
 
     # All reflections should be symmetric
-    assert numpy.ma.allclose(v, v_x), 'Bad x (minor axis) symmetry.'
-    assert numpy.ma.allclose(v, v_y), 'Bad y (major axis) symmetry.'
-    assert numpy.ma.allclose(v, v_xy), 'Bad 4-point symmetry'
+    assert np.ma.allclose(v, v_x), 'Bad x (minor axis) symmetry.'
+    assert np.ma.allclose(v, v_y), 'Bad y (major axis) symmetry.'
+    assert np.ma.allclose(v, v_xy), 'Bad 4-point symmetry'
 
 
 def test_bisymmetric_symmetry():
@@ -77,15 +77,15 @@ def test_bisymmetric_symmetry():
     ifusize = 22
     pixelscale = 0.5
     width_buffer = 10
-    n = int(numpy.floor(ifusize/pixelscale)) + width_buffer
+    n = int(np.floor(ifusize/pixelscale)) + width_buffer
     if n % 2 != 0:
         n += 1
-    x = numpy.arange(n, dtype=float)[::-1] - n//2
-    y = numpy.arange(n, dtype=float) - n//2
-    x, y = numpy.meshgrid(pixelscale*x, pixelscale*y)
+    x = np.arange(n, dtype=float)[::-1] - n//2
+    y = np.arange(n, dtype=float) - n//2
+    x, y = np.meshgrid(pixelscale*x, pixelscale*y)
     ifu_mask = geometry.point_inside_polygon(geometry.hexagon_vertices(d=ifusize),
-                                             numpy.column_stack((x.ravel(), y.ravel())))
-    ifu_mask = numpy.logical_not(ifu_mask).reshape(x.shape)    
+                                             np.column_stack((x.ravel(), y.ravel())))
+    ifu_mask = np.logical_not(ifu_mask).reshape(x.shape)    
 
     disk = bisym.BisymmetricDisk(vt=oned.HyperbolicTangent(), dc=oned.Exponential())
     disk.par[:2] = 0.           # Ensure that the center is at 0,0
@@ -110,15 +110,15 @@ def test_bisymmetric_symmetry():
                                               rotation=-disk.par[2])
     # Reflection order is None, x, y, xy
     maxd = 0.4
-    v_x = numpy.ma.MaskedArray(v.ravel()[i[1]], mask=d[1] > maxd).reshape(v.shape)
-    v_y = numpy.ma.MaskedArray(-v.ravel()[i[2]], mask=d[2] > maxd).reshape(v.shape)
-    v_xy = numpy.ma.MaskedArray(-v.ravel()[i[3]], mask=d[3] > maxd).reshape(v.shape)
+    v_x = np.ma.MaskedArray(v.ravel()[i[1]], mask=d[1] > maxd).reshape(v.shape)
+    v_y = np.ma.MaskedArray(-v.ravel()[i[2]], mask=d[2] > maxd).reshape(v.shape)
+    v_xy = np.ma.MaskedArray(-v.ravel()[i[3]], mask=d[3] > maxd).reshape(v.shape)
 
     # Axisymmetric reflections should not be symmetric
-    assert not numpy.ma.allclose(v, v_x), 'Bad x (minor axis) symmetry.'
-    assert not numpy.ma.allclose(v, v_y), 'Bad y (major axis) symmetry.'
+    assert not np.ma.allclose(v, v_x), 'Bad x (minor axis) symmetry.'
+    assert not np.ma.allclose(v, v_y), 'Bad y (major axis) symmetry.'
     # But 180 degree rotation *should* be.
-    assert numpy.ma.allclose(v, v_xy), 'Bad 4-point symmetry'
+    assert np.ma.allclose(v, v_xy), 'Bad 4-point symmetry'
 
 
 def test_bisymmetric_asymmetry_maps():
@@ -126,15 +126,15 @@ def test_bisymmetric_asymmetry_maps():
     ifusize = 22
     pixelscale = 0.5
     width_buffer = 10
-    n = int(numpy.floor(ifusize/pixelscale)) + width_buffer
+    n = int(np.floor(ifusize/pixelscale)) + width_buffer
     if n % 2 != 0:
         n += 1
-    x = numpy.arange(n, dtype=float)[::-1] - n//2
-    y = numpy.arange(n, dtype=float) - n//2
-    x, y = numpy.meshgrid(pixelscale*x, pixelscale*y)
+    x = np.arange(n, dtype=float)[::-1] - n//2
+    y = np.arange(n, dtype=float) - n//2
+    x, y = np.meshgrid(pixelscale*x, pixelscale*y)
     ifu_mask = geometry.point_inside_polygon(geometry.hexagon_vertices(d=ifusize),
-                                             numpy.column_stack((x.ravel(), y.ravel())))
-    ifu_mask = numpy.logical_not(ifu_mask).reshape(x.shape)    
+                                             np.column_stack((x.ravel(), y.ravel())))
+    ifu_mask = np.logical_not(ifu_mask).reshape(x.shape)    
 
     disk = bisym.BisymmetricDisk(vt=oned.HyperbolicTangent(), dc=oned.Exponential())
     disk.par[:2] = 0.           # Ensure that the center is at 0,0
@@ -155,28 +155,28 @@ def test_bisymmetric_asymmetry_maps():
     disk.par[13] = 1.       # 2nd-order radial power
 
     v, sig = disk.model(x=x, y=y)
-#    pa, inc = numpy.radians(disk.par[2:4])
+#    pa, inc = np.radians(disk.par[2:4])
 #    r, th = geometry.projected_polar(x - disk.par[0], y - disk.par[1], pa, inc)
 #    wedge = 30.
 #    major_gpm = select_major_axis(r, th, r_range='all', wedge=wedge)
-#    maxr = numpy.max(r[major_gpm])
+#    maxr = np.max(r[major_gpm])
 #
-#    _r = numpy.linspace(0, maxr, num=100)
+#    _r = np.linspace(0, maxr, num=100)
 #    _vt_r = disk.vt.sample(_r, par=disk.par[disk._vt_slice()])
 #    _v2t_r = disk.v2t.sample(_r, par=disk.par[disk._v2t_slice()])
 #    _v2r_r = disk.v2r.sample(_r, par=disk.par[disk._v2r_slice()])
 #
-#    _th = numpy.linspace(-numpy.pi, numpy.pi, num=100)
-#    _pab = (numpy.radians(disk.par[5]) + numpy.pi/2) % numpy.pi - numpy.pi/2
-#    _th_b = _th - numpy.arctan(numpy.tan(_pab)/numpy.cos(inc))
+#    _th = np.linspace(-np.pi, np.pi, num=100)
+#    _pab = (np.radians(disk.par[5]) + np.pi/2) % np.pi - np.pi/2
+#    _th_b = _th - np.arctan(np.tan(_pab)/np.cos(inc))
 #    # Use the radius at which the 2nd-order terms are maximized.
 #    _amp_r = max(disk.par[9]*disk.par[10], disk.par[12]*disk.par[13])
 #    _amp_vt = disk.vt.sample(_amp_r, par=disk.par[disk._vt_slice()])
 #    _amp_v2t = disk.v2t.sample(_amp_r, par=disk.par[disk._v2t_slice()])
 #    _amp_v2r = disk.v2r.sample(_amp_r, par=disk.par[disk._v2r_slice()])
-#    _vt_t = _amp_vt * numpy.cos(_th)
-#    _v2t_t = _amp_v2t * numpy.cos(_th) * numpy.cos(2*_th_b)
-#    _v2r_t = _amp_v2r * numpy.sin(_th) * numpy.sin(2*_th_b)
+#    _vt_t = _amp_vt * np.cos(_th)
+#    _v2t_t = _amp_v2t * np.cos(_th) * np.cos(2*_th_b)
+#    _v2r_t = _amp_v2r * np.sin(_th) * np.sin(2*_th_b)
 #
 #    pyplot.plot(_th, _vt_t, linestyle='--')
 #    pyplot.plot(_th, -_v2t_t, linestyle='--')
@@ -189,7 +189,7 @@ def test_bisymmetric_asymmetry_maps():
                                                     pa=disk.par[2], odd=True, maxd=0.4)
 
     # 180 deg symmetry should be 0 for unmasked pixels.
-    assert numpy.isclose(numpy.ma.std(v_xy), 0.), 'Bad 180 deg symmetry value'
+    assert np.isclose(np.ma.std(v_xy), 0.), 'Bad 180 deg symmetry value'
 
 #    from matplotlib import pyplot
 #    w,h = pyplot.figaspect(1)
@@ -219,12 +219,12 @@ def test_asymmetry_data():
     v = kin.remap('vel')
     v_x, v_y, v_xy = asymmetry.onsky_asymmetry_maps(kin.grid_x-0.17, kin.grid_y-0.11,
                                                     v-2.35, pa=5.9, #galmeta.pa,
-                                                    mask=numpy.ma.getmaskarray(v).copy(),
+                                                    mask=np.ma.getmaskarray(v).copy(),
                                                     odd=True, maxd=0.4)
 
-    assert numpy.ma.mean(numpy.absolute(v_x)) > numpy.ma.mean(numpy.absolute(v_xy)), \
+    assert np.ma.mean(np.absolute(v_x)) > np.ma.mean(np.absolute(v_xy)), \
             'Asymmetry comparison changed; v_x should be > than v_xy'
-    assert numpy.ma.mean(numpy.absolute(v_y)) > numpy.ma.mean(numpy.absolute(v_xy)), \
+    assert np.ma.mean(np.absolute(v_y)) > np.ma.mean(np.absolute(v_xy)), \
             'Asymmetry comparison changed; v_y should be > than v_xy'
 
 
@@ -240,7 +240,7 @@ def test_asymmetry_data_with_err():
     v = kin.remap('vel')
     ivar = kin.remap('vel_ivar')
     covar = kin.remap_covar('vel_covar')
-    mask = numpy.ma.getmaskarray(v) | numpy.ma.getmaskarray(ivar)
+    mask = np.ma.getmaskarray(v) | np.ma.getmaskarray(ivar)
 
     v_x, v_y, v_xy, v_x_var, v_y_var, v_xy_var \
             = asymmetry.onsky_asymmetry_maps(kin.grid_x, kin.grid_y, v.data-27.1, pa=165.9, #galmeta.pa,
@@ -250,13 +250,13 @@ def test_asymmetry_data_with_err():
             = asymmetry.onsky_asymmetry_maps(kin.grid_x, kin.grid_y, v.data-27.1, pa=165.9, #galmeta.pa,
                                              covar=covar, mask=mask, odd=True, maxd=0.4)
 
-    assert numpy.array_equal(v_x, _v_x), 'Difference in error affected asymmetry map!'
-    assert numpy.sum(v_x.compressed() == 0.) == 33, 'Number of 0 pixels changed'
+    assert np.array_equal(v_x, _v_x), 'Difference in error affected asymmetry map!'
+    assert np.sum(v_x.compressed() == 0.) == 33, 'Number of 0 pixels changed'
 
-    _v_x_err = numpy.ma.MaskedArray(numpy.ma.sqrt(_v_x_covar.diagonal()).reshape(v.shape),
+    _v_x_err = np.ma.MaskedArray(np.ma.sqrt(_v_x_covar.diagonal()).reshape(v.shape),
                                     mask=v_x.mask.copy())
-    v_x_err = numpy.ma.sqrt(v_x_var)
-    assert not numpy.array_equal(v_x_err, _v_x_err), \
+    v_x_err = np.ma.sqrt(v_x_var)
+    assert not np.array_equal(v_x_err, _v_x_err), \
             'Calculations with and without covariance should not be identical'
 
 @requires_remote

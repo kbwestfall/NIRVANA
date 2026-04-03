@@ -1,7 +1,7 @@
 
 from IPython import embed
 
-import numpy
+import numpy as np
 
 from matplotlib import pyplot
 
@@ -29,7 +29,7 @@ def test_lsq_nopsf():
                            #, tie_disk=[True, False, False, False])
 
     p0 = disk.guess_par()
-    fix = numpy.zeros(p0.size, dtype=bool)
+    fix = np.zeros(p0.size, dtype=bool)
     # Fix the center
     fix[0:2] = True
 

@@ -1,14 +1,14 @@
 
 from IPython import embed
 
-import numpy
+import numpy as np
 
 from nirvana.data.meta import GlobalPar
 from nirvana.models.axisym import AxisymmetricDisk
 
 def test_inc():
     gp = GlobalPar(pa=45, ell=0.5, q0=0.)
-    assert numpy.isclose(gp.guess_inclination(), 60.), 'Wrong guess inclination'
+    assert np.isclose(gp.guess_inclination(), 60.), 'Wrong guess inclination'
 
     gp = GlobalPar(pa=45, ell=0.5, q0=0.2)
     assert gp.guess_inclination() > 60., 'Wrong guess inclination'
@@ -19,9 +19,9 @@ def test_kinpa():
     disk.par[3] = 45.       # Set the kinematic position angle
 
     n = 51
-    x = numpy.arange(n, dtype=float)[::-1] - n//2
-    y = numpy.arange(n, dtype=float) - n//2
-    x, y = numpy.meshgrid(x, y)
+    x = np.arange(n, dtype=float)[::-1] - n//2
+    y = np.arange(n, dtype=float) - n//2
+    x, y = np.meshgrid(x, y)
 
     vel = disk.model(par=disk.par, x=x, y=y)
 
@@ -30,6 +30,6 @@ def test_kinpa():
     pa = gp.guess_kinematic_pa(x, y, vel)
 
     # Make sure the correct position angle was recovered
-    assert numpy.isclose(pa, 45.), 'Position angle should have been flipped'
+    assert np.isclose(pa, 45.), 'Position angle should have been flipped'
 
 

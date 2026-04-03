@@ -20,7 +20,7 @@ from configparser import ConfigParser
 
 from IPython import embed
 
-import numpy
+import numpy as np
 
 from pydl.pydlutils.yanny import yanny
 
@@ -66,7 +66,7 @@ class BitMask:
             Number of bits
         bits (dict):
             A dictionary with the bit name and value
-        descr (numpy.ndarray):
+        descr (np.ndarray):
             List of bit descriptions
         max_value (int):
             The maximum valid bitmask value given the number of bits.
@@ -75,8 +75,8 @@ class BitMask:
     def __init__(self, keys, descr=None):
 
         _keys = keys if hasattr(keys, '__iter__') else [keys]
-        _keys = numpy.atleast_1d(_keys).ravel()
-        _descr = None if descr is None else numpy.atleast_1d(descr).ravel()
+        _keys = np.atleast_1d(_keys).ravel()
+        _descr = None if descr is None else np.atleast_1d(descr).ravel()
         if _descr is not None:
             for i in range(len(_descr)):
                 _descr[i] = _descr[i].strip()
@@ -93,7 +93,7 @@ class BitMask:
         # Allow for multiple NULL keys; but check the rest for
         # uniqueness
         diff = set(_keys) - set(['NULL'])
-        if len(diff) != numpy.unique(_keys[[k != 'NULL' for k in _keys]]).size:
+        if len(diff) != np.unique(_keys[[k != 'NULL' for k in _keys]]).size:
             raise ValueError('All input keys must be unique.')
 
         # Initialize the attributes
@@ -143,16 +143,16 @@ class BitMask:
         cnfg.read(f)
 
         # Read the keys, values, and descriptions
-        keys = numpy.array(cnfg.sections())
-        vals = numpy.zeros(keys.size, dtype=int)
-        descr = numpy.zeros(keys.size, dtype=object)
+        keys = np.array(cnfg.sections())
+        vals = np.zeros(keys.size, dtype=int)
+        descr = np.zeros(keys.size, dtype=object)
         for i,k in enumerate(keys):
             vals[i] = cnfg[k]['value']
             descr[i] = cnfg[k]['descr']
 
         # Slot in NULLs where necessary and return the object instance
         keys, vals, descr = cls._fill_sequence(keys, vals, descr)
-        srt = numpy.argsort(vals)
+        srt = np.argsort(vals)
         return cls(keys[srt], descr=descr[srt])
 
     # TODO: Add a to_par_file method
@@ -189,25 +189,25 @@ class BitMask:
         bits = yanny(filename=f, raw=True)['MASKBITS']
 
         # Find the bits with the correct designation
-        indx = numpy.array(bits['flag']) == name
-        keys = numpy.array(bits['label'])[indx]
-        vals = numpy.array(bits['bit'])[indx]
-        descr = numpy.array(bits['description'])[indx]
+        indx = np.array(bits['flag']) == name
+        keys = np.array(bits['label'])[indx]
+        vals = np.array(bits['bit'])[indx]
+        descr = np.array(bits['description'])[indx]
 
         # Slot in NULLs where necessary and return the object instance
         keys, vals, descr = cls._fill_sequence(keys, vals, descr)
-        srt = numpy.argsort(vals)
+        srt = np.argsort(vals)
         return cls(keys[srt], descr=None if descr is None else descr[srt])
 
     def _prep_flags(self, flag):
         """Prep the flags for use."""
         # Flags must be a numpy array
-        _flag = numpy.array(self.keys()) if flag is None else numpy.atleast_1d(flag).ravel()
+        _flag = np.array(self.keys()) if flag is None else np.atleast_1d(flag).ravel()
         # NULL flags not allowed
-        if numpy.any([f == 'NULL' for f in _flag]):
+        if np.any([f == 'NULL' for f in _flag]):
             raise ValueError('Flag name NULL is not allowed.')
         # Flags should be among the bitmask keys
-        if numpy.any([f not in self.keys() for f in _flag]):
+        if np.any([f not in self.keys() for f in _flag]):
             raise ValueError('Some bit names not recognized.')
         return _flag
 
@@ -220,7 +220,7 @@ class BitMask:
         vals = [self.bits[k] for k in keys]
         descr = None if self.descr is None else [self.descr[self.bits[k]] for k in keys]
         keys, vals, descr = BitMask._fill_sequence(keys, vals, descr)
-        srt = numpy.argsort(vals)
+        srt = np.argsort(vals)
         return keys[srt], None if descr is None else descr[srt]
 
     @staticmethod
@@ -247,27 +247,27 @@ class BitMask:
                 descriptions are defined.
 
         Returns:
-            `numpy.ndarray`_: Three arrays with the filled keys, values,
+            `np.ndarray`_: Three arrays with the filled keys, values,
             and descriptions.
 
         Raises:
             ValueError: Raised if a bit value is less than 0.
         """
-        _keys = numpy.atleast_1d(keys).ravel()
-        _vals = numpy.atleast_1d(vals).ravel()
-        _descr = None if descr is None else numpy.atleast_1d(descr).ravel()
+        _keys = np.atleast_1d(keys).ravel()
+        _vals = np.atleast_1d(vals).ravel()
+        _descr = None if descr is None else np.atleast_1d(descr).ravel()
         
-        if numpy.amin(_vals) < 0:
+        if np.amin(_vals) < 0:
             raise ValueError('No bit cannot be less than 0!')
-        minv = numpy.amin(_vals)
-        maxv = numpy.amax(_vals)
+        minv = np.amin(_vals)
+        maxv = np.amax(_vals)
 
         if minv != 0 or maxv != len(_vals)-1:
-            diff = list(set(numpy.arange(maxv)) - set(_vals))
-            _vals = numpy.append(_vals, diff)
-            _keys = numpy.append(_keys, numpy.array(['NULL']*len(diff)))
+            diff = list(set(np.arange(maxv)) - set(_vals))
+            _vals = np.append(_vals, diff)
+            _keys = np.append(_keys, np.array(['NULL']*len(diff)))
             if _descr is not None:
-                _descr = numpy.append(_descr, numpy.array(['']*len(diff)))
+                _descr = np.append(_descr, np.array(['']*len(diff)))
 
         return _keys, _vals, _descr
 
@@ -281,7 +281,7 @@ class BitMask:
         Returns:
             list: List of bit keywords.
         """
-        k = numpy.array(list(self.bits.keys()))
+        k = np.array(list(self.bits.keys()))
         return k[[_k != 'NULL' for _k in k]].tolist()
 
     def info(self):
@@ -289,7 +289,7 @@ class BitMask:
         Print the list of bits and, if available, their descriptions.
         """
         try:
-            tr, tcols = numpy.array(os.popen('stty size', 'r').read().split()).astype(int)
+            tr, tcols = np.array(os.popen('stty size', 'r').read().split()).astype(int)
             tcols -= int(tcols*0.1)
         except:
             tr = None
@@ -322,12 +322,12 @@ class BitMask:
             int8 values.
         """
         if self.nbits < 8:
-            return numpy.uint8 if asuint else numpy.int16
+            return np.uint8 if asuint else np.int16
         if self.nbits < 16:
-            return numpy.uint16 if asuint else numpy.int16
+            return np.uint16 if asuint else np.int16
         if self.nbits < 32:
-            return numpy.uint32 if asuint else numpy.int32
-        return numpy.uint64 if asuint else numpy.int64
+            return np.uint32 if asuint else np.int32
+        return np.uint64 if asuint else np.int64
 
     def flagged(self, value, flag=None):
         """
@@ -385,12 +385,12 @@ class BitMask:
                 Raised if the provided *flag* does not contain one or
                 more strings.
         """
-        if not numpy.issubdtype(type(value), numpy.integer):
+        if not np.issubdtype(type(value), np.integer):
             raise TypeError('Input must be a single integer.')
         if value <= 0:
             return []
-        keys = numpy.array(self.keys())
-        indx = numpy.array([1<<self.bits[k] & value != 0 for k in keys])
+        keys = np.array(self.keys())
+        indx = np.array([1<<self.bits[k] & value != 0 for k in keys])
         return list(keys[indx])
 
     def toggle(self, value, flag):
@@ -509,7 +509,7 @@ class BitMask:
                 The specific bits to unpack.  If None, all values are
                 unpacked.
         Returns:
-            tuple: A tuple of boolean numpy.ndarrays flagged according
+            tuple: A tuple of boolean np.ndarrays flagged according
             to each bit.
         """
         _flag = self._prep_flags(flag)
@@ -537,7 +537,7 @@ class BitMask:
         if prefix is None:
             prefix = self.prefix
         maxbit = max(list(self.bits.values()))
-        ndig = 1 if maxbit == 0 else int(numpy.log10(maxbit))+1 
+        ndig = 1 if maxbit == 0 else int(np.log10(maxbit))+1 
         for key, value in sorted(self.bits.items(), key=lambda x:(x[1],x[0])):
             if key == 'NULL':
                 continue
@@ -569,7 +569,7 @@ class BitMask:
         # Fill in any missing bits
         keys, values, descr = cls._fill_sequence(keys, values, descr=descr)
         # Make sure the bits are sorted
-        srt = numpy.argsort(values)
+        srt = np.argsort(values)
         # Instantiate the BitMask
         return cls(keys[srt], descr=descr[srt])
 
@@ -634,9 +634,9 @@ class BitMask:
         if dtype is None:
             dtype = self.minimum_dtype()
         # Check dtype is an integer
-        if not isinstance(dtype(0), numpy.integer):
+        if not isinstance(dtype(0), np.integer):
             raise ValueError('Provided dtype must be an integer type.')
-        return numpy.zeros(shape, dtype=dtype)
+        return np.zeros(shape, dtype=dtype)
 
 
 #    def to_rst_table(self, header=True, class_link=True):
@@ -655,7 +655,7 @@ class BitMask:
 #            to an ``*.rst`` file.
 #        """
 #        keys = self.keys()
-#        data_table = numpy.empty((len(keys)+1, 3), dtype=object)
+#        data_table = np.empty((len(keys)+1, 3), dtype=object)
 #        data_table[0,:] = ['Key', 'Bit', 'Description']
 #        for i,k in enumerate(keys):
 #            data_table[i+1,0] = k

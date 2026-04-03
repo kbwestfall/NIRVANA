@@ -50,8 +50,8 @@ returns the the smallest data type required to represent the list of
 defined bits.  The maximum number of bits that can be defined is 64.
 Assuming you have an image ``img``::
 
-    import numpy
-    mask = numpy.zeros(img.shape, dtype=image_bm.minimum_dtype())
+    import numpy as np
+    mask = np.zeros(img.shape, dtype=image_bm.minimum_dtype())
 
 Assuming you have boolean or integer arrays that identify pixels to
 mask, you can turn on the mask bits as follows::
@@ -75,8 +75,8 @@ Some other short usage examples:
 
     - To find the list of unique flags set for any pixel::
 
-        unique_flags = numpy.sort(numpy.unique(numpy.concatenate(
-                            [image_bm.flagged_bits(b) for b in numpy.unique(mask)]))).tolist()
+        unique_flags = np.sort(np.unique(np.concatenate(
+                            [image_bm.flagged_bits(b) for b in np.unique(mask)]))).tolist()
 
     - To get a boolean array that selects pixels with one or more
       mask bits::
@@ -87,7 +87,7 @@ Some other short usage examples:
 
     - To construct masked arrays, following from the examples above::
 
-        masked_img = numpy.ma.MaskedArray(img, mask=image_bm.flagged(mask))
+        masked_img = np.ma.MaskedArray(img, mask=image_bm.flagged(mask))
 
 :class:`~mangadap.util.bitmask.BitMask` objects can be defined
 programmatically, as shown above for the ``ImageBitMask`` derived class,

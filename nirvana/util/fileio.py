@@ -37,8 +37,8 @@ def init_record_array(shape, dtype):
     Utility function that initializes a record array using a provided
     input data type.  For example::
 
-        dtype = [ ('INDX', np.int, (2,) ),
-                  ('VALUE', np.float) ]
+        dtype = [ ('INDX', int, (2,) ),
+                  ('VALUE', float) ]
 
     Defines two columns, one named `INDEX` with two integers per row and
     the one named `VALUE` with a single float element per row.  See
@@ -260,6 +260,6 @@ def mask_data_type(bit_type):
         return ('FLAG16BIT', '16-bit mask')
     if bit_type in [np.uint8, np.int8]:
         return ('FLAG8BIT', '8-bit mask')
-    if bit_type == np.bool:
+    if bit_type in [np.bool, bool]:
         return ('MASKZERO', 'Binary mask; zero values are good/unmasked')
     raise ValueError('Invalid bit_type: {0}!'.format(str(bit_type)))
