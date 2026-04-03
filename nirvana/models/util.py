@@ -42,7 +42,7 @@ def lin_interp(x, x1, y1, x2, y2):
     .. warning::
 
         Will raise runtime warnings if ``np.any(x1 == x2)`` due to a
-        division by 0, but this not checked.
+        division by 0, but this is not checked.
 
     Args:
         x (:obj:`float`, `numpy.ndarray`_):
@@ -79,7 +79,7 @@ def deriv_lin_interp(x, x1, y1, x2, y2):
     .. warning::
 
         Will raise runtime warnings if ``np.any(x1 == x2)`` due to a division by
-        0, but this not checked.
+        0, but this is not checked.
 
     Args:
         x (:obj:`float`, `numpy.ndarray`_):

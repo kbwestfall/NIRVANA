@@ -59,6 +59,9 @@
       combined (stars+gas) fits
     - Fix download_test_data.py script to download public data from DR17
  - Fix bugs in 1D piecwise functions when sampling on multidimensional arrays.
+ - Added Lucy-Richardson deconvolution algorithm.  Only included with
+   MaNGA-specific classes for now.  Includes diagnostic plot.
+
 
 0.1.0
 -----

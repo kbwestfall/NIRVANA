@@ -505,3 +505,113 @@ def deriv_smear(v, dv, beam, beam_fft=False, sb=None, dsb=None, sig=None, dsig=N
     return mom0, mom1, _mom2, dmom0, dmom1, dmom2
 
 
+def kernel_flip(arr):
+    """
+    Flip/Transpose a kernel image.
+
+    The kernel is expected to be centered in the array and the shape of the
+    image is expected to be square.
+    
+    When the kernel has an odd number of pixels in each axis, this is identical
+    to the numpy.flip function.  When the number of pixels is even, the image is
+    first flipped and then rolled by 1 pixel in each dimension to ensure that
+    the kernel has the same center as the original image.
+
+    Args:
+        arr (`numpy.ndarray`_):
+            The array to flip
+
+    Returns:
+        `numpy.ndarray`_: The flipped array.
+    """
+    return np.roll(np.flip(arr), 1, axis=(0,1)) if arr.shape[0] % 2 == 0 else np.flip(arr)
+
+
+def deconvolve(data, kernel, niter, mask=None, cnvfftw=None, return_model=False):
+    """
+    Deconvolve an image with a known kernel following the `Lucy–Richardson
+    algorithm
+    <https://en.wikipedia.org/wiki/Richardson%E2%80%93Lucy_deconvolution>`__.
+
+    Args:
+        data (`numpy.ndarray`_, `numpy.ma.MaskedArray`_):
+            Image to convolve.  Must be 2D.  If a masked array, the mask is used
+            to ignore pixels during the deconvolution.  If ``mask`` is provided
+            and ``data`` is a masked array, both masks are combined.
+        kernel (`numpy.ndarray`_):
+            The convolution kernel, which must have the same shape as ``data``.
+            This must be the direct kernel image with the center of the kernel
+            at the center of the array.
+        niter (:obj:`int`):
+            The number of refinement iterations.
+        mask (`numpy.ndarray`_, optional):
+            Boolean array selecting pixels to ignore (i.e., a bad-pixel mask).
+            If ``data`` is a masked array, this array is combined with the array
+            mask.
+        cnvfftw (:class:`~nirvana.models.beam.ConvolveFFTW`, optional):
+            A pre-existing FFTW object to use for the convolution.  If provides,
+            must have been instantiated to use the correct shape.
+        return_model (:obj:`bool`, optional):
+            Return the "model" of the data, defined as the convolution of the
+            kernel with the final deconvolved image.
+
+    Returns:
+        :obj:`tuple`: Two or three `numpy.ndarray`_ objects with (1) the
+        deconvolved image, (2) its bad-pixel mask, and (3) the convolution of
+        the kernal with the deconvolved image.  The latter is the "model" of the
+        input data, and it is only returned if ``return_model`` is True.
+    """
+    # Get the object used to perform the convolution
+    if cnvfftw is None:
+        try:
+            _cnv = ConvolveFFTW(data.shape)
+        except:
+            _cnv = convolve_fft
+    else:
+        _cnv = cnvfftw
+
+    # Construct the FFT of the kernel and its transpose.  Calculated once to
+    # speed up iterations.
+    # TODO: Use ConvolveFFTW.fft() instead?
+    fft_kern = np.fft.fftn(np.fft.ifftshift(kernel))
+    fft_flipkern = np.fft.fftn(np.fft.ifftshift(kernel_flip(kernel)))
+
+    # Get the data and its mask
+    _data = data.data.copy() if isinstance(data, np.ma.MaskedArray) else data.copy()
+    _gpm = np.logical_not(np.ma.getmaskarray(data))
+    if mask is not None:
+        _gpm &= np.logical_not(mask)
+    _fgpm = _gpm.astype(float)
+
+    # Get the convolution of the mask used to normalize masked convolutions
+    cnv_gpm = _cnv(_fgpm, fft_kern, kernel_fft=True)
+    inv_cnv_gpm = 1./(cnv_gpm + (cnv_gpm == 0.))
+
+    cnv_flipgpm = _cnv(_fgpm, fft_flipkern, kernel_fft=True)
+    inv_cnv_flipgpm = 1./(cnv_flipgpm + (cnv_flipgpm == 0.))
+
+    # Perform the deconvolution
+    dcnv_data = _data.copy()
+#    total_flux = np.sum(_data)
+#    model_flux = np.zeros(niter, dtype=float)
+#    model_rms = np.zeros(niter, dtype=float)
+    for i in range(niter):
+        _dcnv_data = _cnv(dcnv_data*_fgpm, fft_kern, kernel_fft=True) * inv_cnv_gpm
+        corr = _data/(_dcnv_data + (_dcnv_data == 0.0))
+        dcnv_data *= _cnv(corr*_fgpm, fft_flipkern, kernel_fft=True) * inv_cnv_flipgpm
+#        test_sb = _cnv(dcnv_data * _fgpm, fft_kern, kernel_fft=True) * inv_cnv_gpm * _fgpm
+#        model_flux[i] = np.sum(test_sb)
+#        model_rms[i] = np.sqrt(np.mean(np.square(_data - test_sb)))
+
+#    from matplotlib import pyplot
+#    pyplot.scatter(np.arange(niter), model_flux/total_flux-1., color='C0', marker='.', s=30)
+#    pyplot.scatter(np.arange(niter), model_rms*100, color='C1', marker='.', s=30)
+#    pyplot.show()
+
+    if not return_model:
+        return dcnv_data, np.logical_not(_gpm)
+
+    model = _cnv(dcnv_data * _fgpm, fft_kern, kernel_fft=True) * inv_cnv_gpm * _fgpm
+    return dcnv_data, np.logical_not(_gpm), model
+        
+

@@ -59,6 +59,10 @@ def parse_args(options=None):
                         help='Ignore the map PSF (i.e., ignore beam-smearing)')
     parser.add_argument('--covar', default=False, action='store_true',
                         help='Include the nominal covariance in the fit')
+    parser.add_argument('--deconv', default=False, action='store_true',
+                        help='Deconvolve the surface-brightness map using the PSF and use it '
+                             'during the model construction instead of the observed map.  The '
+                             'PSF must be available (ie., the --nopsf flag cannot be set).')
     parser.add_argument('--fix_cen', default=False, action='store_true',
                         help='Fix the dynamical center coordinate to the galaxy center')
     parser.add_argument('--fix_inc', default=False, action='store_true',
@@ -157,11 +161,19 @@ def main(args):
 
     #---------------------------------------------------------------------------
     # Setup
+    #  - Check deconvolution is possible
+    if args.deconv and not args.smear:
+        raise ValueError('Must include PSF if deconvolving the surface-brightness map.')
     #  - Check that the output directory exists, and if not create it
     if not os.path.isdir(args.odir):
         os.makedirs(args.odir)
     #  - Set the output root name
     oroot = f'nirvana-manga-asymdrift-{args.plate}-{args.ifu}'
+
+    deconvolve_gas_qa = None if args.deconv is None or args.skip_plots \
+                        else os.path.join(args.odir, f'{oroot}-Gas-deconvolve.png')
+    deconvolve_str_qa = None if args.deconv is None or args.skip_plots \
+                        else os.path.join(args.odir, f'{oroot}-Stars-deconvolve.png')
 
     #---------------------------------------------------------------------------
     # Read the metadata and the kinematic data
@@ -175,7 +187,9 @@ def main(args):
                                                      ignore_psf=not args.smear, covar=args.covar,
                                                      positive_definite=True,
                                                      flux_bound=(None, args.gas_max_flux),
-                                                     sb_fill=args.sb_fill_sig)
+                                                     sb_fill=args.sb_fill_sig,
+                                                     deconvolve_sb=args.deconv,
+                                                     deconvolve_qa=deconvolve_gas_qa)
     str_kin = manga.MaNGAStellarKinematics.from_plateifu(args.plate, args.ifu,
                                                          daptype=args.daptype, dr=args.dr,
                                                          redux_path=args.redux,
@@ -184,7 +198,9 @@ def main(args):
                                                          maps_path=args.root,
                                                          ignore_psf=not args.smear,
                                                          covar=args.covar, positive_definite=True,
-                                                         sb_fill=args.sb_fill_sig)
+                                                         sb_fill=args.sb_fill_sig,
+                                                         deconvolve_sb=args.deconv,
+                                                         deconvolve_qa=deconvolve_str_qa)
 
     #---------------------------------------------------------------------------
     # Run the iterative fits separately for the gas and stars

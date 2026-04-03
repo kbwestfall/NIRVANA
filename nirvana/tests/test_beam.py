@@ -8,7 +8,8 @@ from astropy import convolution
 from nirvana.models import beam
 from nirvana.models import oned
 from nirvana.models.geometry import projected_polar
-from nirvana.tests.util import requires_pyfftw
+from nirvana.data import manga
+from nirvana.tests.util import requires_pyfftw, remote_data_file, requires_remote, dap_test_daptype
 
 def test_convolve():
     """
@@ -113,4 +114,87 @@ def test_smear():
     assert numpy.allclose(sb_smear, _sb_smear), 'SB+Vel+Sig convolution difference in SB.'
     assert numpy.allclose(vel_smear, _vel_smear), 'SB+Vel+Sig convolution difference in vel.'
     assert numpy.allclose(sig_smear, _sig_smear), 'SB+Vel+Sig convolution difference in sig.'
+
+
+@requires_pyfftw
+def test_deconvolve():
+    """
+    Test deconvolution
+    """
+    # Gaussian kernel
+    synth = beam.gauss2d_kernel(73, 3.)
+    # Convolution object
+    cnvfftw = beam.ConvolveFFTW(synth.shape)
+    # Get the convolved image
+    c = cnvfftw(synth, synth)
+    # Deconvolve
+    d, m, dc = beam.deconvolve(c, synth, 20, cnvfftw=cnvfftw, return_model=True)
+    assert numpy.sum((c-dc)**2) < 1e-9, 'Deconvolution performance worsened.'
+
+
+@requires_remote
+def test_deconvolve_gas():
+    # Example gas data
+    data_root = remote_data_file()
+    kin = manga.MaNGAGasKinematics.from_plateifu(8138, 12704, cube_path=data_root,
+                                                 maps_path=data_root)
+
+    # Convolution object
+    synth = kin.beam.astype(float)
+    cnvfftw = beam.ConvolveFFTW(synth.shape)
+
+#    # Deconvolve
+#    c = cnvfftw(synth, synth)
+#    d = beam.deconvolve(c, synth, 30, cnvfftw=cnvfftw)
+#    # Convolve the deconvolved image with the kernel to compare with original image
+#    test_c = cnvfftw(d, synth)
+
+    # Deconvolve
+    mask = kin.grid_sb == 0.
+    d, d_bpm = beam.deconvolve(kin.grid_sb, synth, 80, mask=mask, cnvfftw=cnvfftw)
+
+    # Convolve the deconvolved image with the kernel to compare with original image
+    d_gpm = numpy.logical_not(d_bpm).astype(float)
+    cnv_gpm = cnvfftw(d_gpm, synth)
+    test_sb = cnvfftw(d * d_gpm, synth) / (cnv_gpm + (cnv_gpm == 0.)) * d_gpm
+
+    # Test total flux recovery
+    obs_flux = numpy.sum(kin.grid_sb * d_gpm)
+    model_flux = numpy.sum(test_sb)
+    assert numpy.absolute(model_flux / obs_flux - 1) < 1e-4, 'Change in total flux too large'
+
+    # Test residual
+    model_rms = numpy.sqrt(numpy.mean(numpy.square((kin.grid_sb - test_sb)*d_gpm)))
+    assert model_rms < 0.1, 'RMS difference in surface-brightness too large'
+
+
+@requires_remote
+def test_deconvolve_star():
+
+    # Example stellar data
+    data_root = remote_data_file()
+    kin = manga.MaNGAStellarKinematics.from_plateifu(8138, 12704, cube_path=data_root,
+                                                     maps_path=data_root)
+
+    # Convolution object
+    synth = kin.beam.astype(float)
+    cnvfftw = beam.ConvolveFFTW(synth.shape)
+
+    # Deconvolve
+    mask = kin.grid_sb == 0.
+    d, d_bpm = beam.deconvolve(kin.grid_sb, synth, 80, mask=mask, cnvfftw=cnvfftw)
+
+    # Convolve the deconvolved image with the kernel to compare with original image
+    d_gpm = numpy.logical_not(d_bpm).astype(float)
+    cnv_gpm = cnvfftw(d_gpm, synth)
+    test_sb = cnvfftw(d * d_gpm, synth) / (cnv_gpm + (cnv_gpm == 0.)) * d_gpm
+
+    # Test total flux recovery
+    obs_flux = numpy.sum(kin.grid_sb * d_gpm)
+    model_flux = numpy.sum(test_sb)
+    assert numpy.absolute(model_flux / obs_flux - 1) < 1e-3, 'Change in total flux too large'
+
+    # Test residual
+    model_rms = numpy.sqrt(numpy.mean(numpy.square((kin.grid_sb - test_sb)*d_gpm)))
+    assert model_rms < 0.1, 'RMS difference in surface-brightness too large'
 

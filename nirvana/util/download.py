@@ -28,6 +28,8 @@ def download_file(url, outfile, overwrite=True, auth=None):
         ValueError:
             Raised if the file may have been corrupted on transfer.
     """
+    # TODO: If the file exists, checks that the size of the remote file is
+    # identical to the size of the current file!
     #Beware of how this is joined!
     if os.path.isfile(outfile):
         if overwrite:

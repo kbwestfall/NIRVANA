@@ -9,6 +9,7 @@ Module with the derived instances for MaNGA kinematics.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+from pathlib import Path
 import os
 import glob
 import warnings
@@ -20,17 +21,21 @@ from IPython import embed
 
 import numpy as np
 from scipy import sparse
-import matplotlib.image as img
+import matplotlib.image
+from matplotlib import pyplot, rc, patches, ticker, colors
 
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy import constants
 
 from .util import get_map_bin_transformations, impose_positive_definite, gaussian_fill, fill_matrix
+from .util import growth_lim
 from .kinematics import Kinematics
 from .meta import GlobalPar
+from ..util import plot
 from ..util.bitmask import BitMask
 from ..util.download import download_file
+from ..models import beam
 
 
 def channel_dictionary(hdu, ext, prefix='C'):
@@ -822,10 +827,131 @@ class MaNGAKinematics(Kinematics):
         return cls(maps_file, cube_file=cube_file, image_file=image_file, fwhm_only=fwhm_only, **kwargs)
 
 
+def manga_deconvolve_qa(x, y, obs_sb, model_sb, dcnv_sb, fwhm=None, title=None, ofile=None):
+    """
+    Make a diagnostic plot for the deconvolved surface-brightness image.
+
+    Args:
+        x (`numpy.ndarray`_):
+            Sky-right x coordinates
+        y (`numpy.ndarray`_):
+            Sky-right y coordinates
+        obs_sb (`numpy.ma.MaskedArray`_):
+            Observed surface brightness
+        model_sb (`numpy.ma.MaskedArray`_):
+            Model surface brightness, which is the convolution of the
+            deconvolved image with the known spatial PSF.
+        dcnv_sb (`numpy.ma.MaskedArray`_):
+            Deconvolved surface-brightness image
+        fwhm (:obj:`float`, optional):
+            FWHM of the PSF.  Used to show beam spot in figure.  Not shown if
+            None.
+        title (:obj:`str`, optional):
+            Plot title.  None provided if None.
+        ofile (:obj:`str`, `Path`_, optional):
+            Name for the output file.  If None, plot is output to the screen and
+            no file is saved.
+    """
+
+    # Set the plotting limits
+    all_sb = np.concatenate([obs_sb.compressed(), model_sb.compressed(), dcnv_sb.compressed()])
+    sb_lim = growth_lim(all_sb, 0.95, fac=1.1)
+    diff_lim = growth_lim((obs_sb - model_sb).compressed(), 0.90, fac=1.3, midpoint=0.0)
+
+    if diff_lim[0] < sb_lim[0]:
+        sb_lim[0] = diff_lim[0]
+
+    # Set the extent for the 2D maps
+    extent = [np.amax(x), np.amin(x), np.amin(y), np.amax(y)]
+    Dx = max(extent[0]-extent[1], extent[3]-extent[2]) # *1.01
+    skylim = np.array([ (extent[0]+extent[1] - Dx)/2., 0.0 ])
+    skylim[1] = skylim[0] + Dx
+
+    w,h = pyplot.figaspect(1)
+    fig = pyplot.figure(figsize=(1.5*w,1.5*h))
+
+    ax = plot.init_ax(fig, [0.04, 0.5, 0.23, 0.23])
+    cax = fig.add_axes([0.16, 0.44, 0.23, 0.01])
+    cax.tick_params(which='both', direction='in')
+    ax.set_xlim(skylim[::-1])
+    ax.set_ylim(skylim)
+    plot.rotate_y_ticks(ax, 90, 'center')
+    if fwhm is not None:
+        ax.add_patch(patches.Circle((0.1, 0.1), fwhm/np.diff(skylim)[0]/2,
+                                    transform=ax.transAxes, facecolor='0.7', edgecolor='k',
+                                    zorder=4))
+    im = ax.imshow(dcnv_sb, origin='lower', interpolation='nearest', cmap='viridis',
+                   extent=extent, vmin=sb_lim[0], vmax=sb_lim[1], zorder=4)
+    ax.text(0.95, 0.9, 'DCNV', ha='right', va='center', transform=ax.transAxes)
+    cb = fig.colorbar(im, cax=cax, orientation='horizontal')
+    cax.text(-0.05, 0.5, r'$\mu$', ha='right', va='center', transform=cax.transAxes)
+
+
+    ax = plot.init_ax(fig, [0.28, 0.50, 0.23, 0.23])
+    ax.set_xlim(skylim[::-1])
+    ax.set_ylim(skylim)
+    ax.yaxis.set_major_formatter(ticker.NullFormatter())
+    if fwhm is not None:
+        ax.add_patch(patches.Circle((0.1, 0.1), fwhm/np.diff(skylim)[0]/2,
+                                    transform=ax.transAxes, facecolor='0.7', edgecolor='k',
+                                    zorder=4))
+    im = ax.imshow(model_sb, origin='lower', interpolation='nearest', cmap='viridis',
+                   extent=extent, vmin=sb_lim[0], vmax=sb_lim[1], zorder=4)
+    ax.text(0.95, 0.9, 'MOD', ha='right', va='center', transform=ax.transAxes)    
+    ax.text(1.0, 1.1, title, ha='center', va='center', transform=ax.transAxes, fontsize=14)
+
+
+    ax = plot.init_ax(fig, [0.52, 0.50, 0.23, 0.23])
+    ax.set_xlim(skylim[::-1])
+    ax.set_ylim(skylim)
+    ax.yaxis.set_major_formatter(ticker.NullFormatter())
+    if fwhm is not None:
+        ax.add_patch(patches.Circle((0.1, 0.1), fwhm/np.diff(skylim)[0]/2,
+                                    transform=ax.transAxes, facecolor='0.7', edgecolor='k',
+                                    zorder=4))
+    im = ax.imshow(obs_sb, origin='lower', interpolation='nearest', cmap='viridis',
+                   extent=extent, vmin=sb_lim[0], vmax=sb_lim[1], zorder=4)
+    ax.text(0.95, 0.9, 'OBS', ha='right', va='center', transform=ax.transAxes)    
+
+
+    ax = plot.init_ax(fig, [0.76, 0.50, 0.23, 0.23])
+    ax.set_xlim(skylim[::-1])
+    ax.set_ylim(skylim)
+    ax.yaxis.set_major_formatter(ticker.NullFormatter())
+    if fwhm is not None:
+        ax.add_patch(patches.Circle((0.1, 0.1), fwhm/np.diff(skylim)[0]/2,
+                                    transform=ax.transAxes, facecolor='0.7', edgecolor='k',
+                                    zorder=4))
+    diff = obs_sb - model_sb
+    im = ax.imshow(diff, origin='lower', interpolation='nearest', cmap='viridis',
+                   extent=extent, vmin=sb_lim[0], vmax=sb_lim[1], zorder=4)
+    ax.text(0.95, -0.2, f'{np.ma.mean(diff):.2f}, {np.ma.std(diff):.2f}',
+            ha='right', va='center', transform=ax.transAxes)
+    perc = list(map(lambda x : f'{x:.2f}',
+                    np.percentile(diff.compressed(), [2.5,16.,50.,84.,97.5])))
+    ax.text(0.95, -0.3, ', '.join(perc),
+            ha='right', va='center', transform=ax.transAxes)
+    ax.text(0.95, 0.9, 'OBS-MOD', ha='right', va='center', transform=ax.transAxes)    
+
+    # Close off the plot
+    if ofile is None:
+        pyplot.show()
+    else:
+        fig.canvas.print_figure(ofile, bbox_inches='tight')
+    fig.clear()
+    pyplot.close(fig)
+
+
+# TODO:  Need to clean-up and consolodate description of grid_sb and regular sb.
+# E.g., "unbinned_sb" is currently only defined for MaNGAStellarKinematics, but
+# someone could potentially use a dataset where the emission lines are also
+# binned.  But, in those case, there *is no* unbinned emission line flux
+# measurements.
+
+
 # TODO:
 #   - What's the minimum MPL that this will work with
 #   - Have this use Marvin to read the data
-#   - Use the bits directly instead of just testing > 0
 class MaNGAGasKinematics(MaNGAKinematics):
     """
     Class to read and hold ionized-gas kinematics from MaNGA.
@@ -864,6 +990,14 @@ class MaNGAGasKinematics(MaNGAKinematics):
             spaxels) used by the mask-replacement algorithm.  If None, the
             surface-brightness image is not altered.  This is *only* applied to
             the data used in the model construction.
+        deconvolve_sb (:obj:`bool`, optional):
+            Use the Lucy-Richardson deconvolution method to deconvolve the
+            surface brightness image used during convolution.  This is only
+            viable if the PSF is accessed via the cube_file, and it only has an
+            influence on the fit if the surface-brightness weighting is used.
+        deconvolve_qa (:obj:`str`, optional):
+            File name for diagnostic plot for deconvolution.  Ignored if
+            ``deconvolve_sb`` is None.
         covar (:obj:`bool`, optional):
             Construct the covariance matrices for the map data.
         positive_definite (:obj:`bool`, optional):
@@ -881,11 +1015,16 @@ class MaNGAGasKinematics(MaNGAKinematics):
     """
 
     def __init__(self, maps_file, cube_file=None, image_file=None, psf_ext='RPSF', line='Ha-6564',
-                 mask_flags='any', flux_bound=None, sb_fill=None, covar=False,
-                 positive_definite=False, quiet=False, fwhm_only=False):
+                 mask_flags='any', flux_bound=None, sb_fill=None, deconvolve_sb=False,
+                 deconvolve_qa=None, covar=False, positive_definite=False, quiet=False,
+                 fwhm_only=False):
 
         if not os.path.isfile(maps_file):
             raise FileNotFoundError(f'File does not exist: {maps_file}')
+
+        if deconvolve_sb and (cube_file is None or fwhm_only):
+            raise ValueError('Cannot deconvolve the surface brightness without the PSF.  Provide '
+                             'a MaNGA datacube file and/or set fwhm_only to false.')
 
         # TODO: We don't need to read the DRP cube file to get the FWHM.  We can
         # get it from the DRPall file, and this is actually already done in the
@@ -893,12 +1032,15 @@ class MaNGAGasKinematics(MaNGAKinematics):
         # Get the PSF, if possible
         if cube_file is not None: 
             psf, fwhm = read_manga_psf(cube_file, psf_ext, fwhm=True)
-            if fwhm_only: psf, cube_file = (None, None)
-        else: psf, fwhm = (None, None)
-
+            # TODO: Add description of fwhm_only to the docstring, if we keep it.
+            if fwhm_only:
+                psf, cube_file = None, None
+        else:
+            psf, fwhm = None, None
         psf_name = None if cube_file is None else psf_ext
+
         # Get the 3-color galaxy thumbnail image
-        image = None if image_file is None else img.imread(image_file)
+        image = None if image_file is None else matplotlib.image.imread(image_file)
 
         # Establish whether or not the gas kinematics were determined
         # on a spaxel-by-spaxel basis, which determines which extension
@@ -983,6 +1125,26 @@ class MaNGAGasKinematics(MaNGAKinematics):
                 sb_mask[sb > flux_bound[1]] = True
 
         grid_sb = None if sb_fill is None else gaussian_fill(sb, sigma=sb_fill, mask=sb_mask)
+        # TODO: Do this here or inside Kinematics?
+        if deconvolve_sb:
+            if grid_sb is None:
+                grid_sb = sb
+            # PSF must exist for this to continue, as checked at the beginning
+            # of the function.
+            # TODO: Should save the original grid_sb, and the grid_sb_mask
+            # returned by the deconvolution algorithm!
+            # TODO: Number of iterations set to 80, but need to check!
+            _grid_sb, grid_sb_mask, model_grid_sb \
+                    = beam.deconvolve(np.absolute(grid_sb), psf/np.sum(psf), 80, mask=sb_mask,
+                                      return_model=True)
+            if deconvolve_qa is not None:
+                manga_deconvolve_qa(grid_x, grid_y, 
+                                    np.ma.MaskedArray(grid_sb, mask=sb_mask),
+                                    np.ma.MaskedArray(model_grid_sb, mask=grid_sb_mask),
+                                    np.ma.MaskedArray(_grid_sb, mask=grid_sb_mask), fwhm=fwhm,
+                            title=f"{'-'.join(maps_file.split('/')[-1].split('-')[1:3])} Gas",
+                            ofile=deconvolve_qa)
+            grid_sb = _grid_sb
 
         if covar:
             if not quiet:
@@ -1051,6 +1213,16 @@ class MaNGAStellarKinematics(MaNGAKinematics):
             surface-brightness values are smoothed and passed to the ``grid_sb``
             argument of the :class:`~nirvana.data.kinematics.Kinematics` base
             class.
+        deconvolve_sb (:obj:`bool`, optional):
+            Use the Lucy-Richardson deconvolution method to deconvolve the
+            surface brightness image used during convolution.  This is only
+            viable if the PSF is accessed via the cube_file and the **unbinned**
+            surface brightness is being used (see ``unbinned_sb``); and it only
+            has an influence on the fit if the surface-brightness weighting is
+            used.
+        deconvolve_qa (:obj:`str`, optional):
+            File name for diagnostic plot for deconvolution.  Ignored if
+            ``deconvolve_sb`` is None.
         covar (:obj:`bool`, optional):
             Construct the covariance matrices for the map data.
         positive_definite (:obj:`bool`, optional):
@@ -1068,19 +1240,32 @@ class MaNGAStellarKinematics(MaNGAKinematics):
     """
 
     def __init__(self, maps_file, cube_file=None, image_file=None, psf_ext='GPSF',
-                 mask_flags='any', unbinned_sb=True, sb_fill=None, covar=False,
-                 positive_definite=False, quiet=False, fwhm_only=False):
+                 mask_flags='any', unbinned_sb=True, sb_fill=None, deconvolve_sb=False,
+                 deconvolve_qa=None, covar=False, positive_definite=False, quiet=False,
+                 fwhm_only=False):
 
         if not os.path.isfile(maps_file):
             raise FileNotFoundError(f'File does not exist: {maps_file}')
 
+        if deconvolve_sb and (cube_file is None or fwhm_only or not unbinned_sb):
+            raise ValueError('Cannot deconvolve the surface brightness without the PSF or when '
+                             'using the binned surface brightness.  Provide a MaNGA datacube '
+                             'file, set fwhm_only to false, and/or set unbinned_sb to True.')
+
+        # TODO: We don't need to read the DRP cube file to get the FWHM.  We can
+        # get it from the DRPall file, and this is actually already done in the
+        # MaNGAGlobalPar class...
         # Get the PSF, if possible
         if cube_file is not None: 
             psf, fwhm = read_manga_psf(cube_file, psf_ext, fwhm=True)
-            if fwhm_only: psf, cube_file = (None, None)
-        else: psf, fwhm = (None, None)
+            if fwhm_only:
+                psf, cube_file = None, None
+        else:
+            psf, fwhm = None, None
         psf_name = None if cube_file is None else psf_ext
-        image = img.imread(image_file) if image_file else None
+
+        # Get the 3-color galaxy thumbnail image
+        image = None if image_file is None else matplotlib.image.imread(image_file)
 
         # Establish whether or not the stellar kinematics were
         # determined on a spaxel-by-spaxel basis, which determines
@@ -1150,6 +1335,26 @@ class MaNGAStellarKinematics(MaNGAKinematics):
                 grid_sb = sb.copy()
                 grid_sb_mask = sb_mask.copy()
             grid_sb = gaussian_fill(grid_sb, sigma=sb_fill, mask=grid_sb_mask)
+        # TODO: Do this here or inside Kinematics?
+        if deconvolve_sb:
+            if grid_sb is None:
+                grid_sb = sb
+            # PSF must exist for this to continue, as checked at the beginning
+            # of the function.
+            # TODO: Should save the original grid_sb, and the grid_sb_mask
+            # returned by the deconvolution algorithm!
+            # TODO: Number of iterations set to 80, but need to check!
+            _grid_sb, _grid_sb_mask, model_grid_sb \
+                    = beam.deconvolve(np.absolute(grid_sb), psf/np.sum(psf), 80, mask=grid_sb_mask,
+                                      return_model=True)
+            if deconvolve_qa is not None:
+                manga_deconvolve_qa(grid_x, grid_y, 
+                                    np.ma.MaskedArray(grid_sb, mask=grid_sb_mask),
+                                    np.ma.MaskedArray(model_grid_sb, mask=_grid_sb_mask),
+                                    np.ma.MaskedArray(_grid_sb, mask=_grid_sb_mask), fwhm=fwhm,
+                            title=f"{'-'.join(maps_file.split('/')[-1].split('-')[1:3])} Stars",
+                            ofile=deconvolve_qa)
+            grid_sb = _grid_sb
 
         if covar:
             if not quiet:

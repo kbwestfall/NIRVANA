@@ -54,6 +54,10 @@ def parse_args(options=None):
                         help='Ignore the map PSF (i.e., ignore beam-smearing)')
     parser.add_argument('--covar', default=False, action='store_true',
                         help='Include the nominal covariance in the fit')
+    parser.add_argument('--deconv', default=False, action='store_true',
+                        help='Deconvolve the surface-brightness map using the PSF and use it '
+                             'during the model construction instead of the observed map.  The '
+                             'PSF must be available (ie., the --nopsf flag cannot be set).')
     parser.add_argument('--fix_cen', default=False, action='store_true',
                         help='Fix the dynamical center coordinate to the galaxy center')
     parser.add_argument('--fix_inc', default=False, action='store_true',
@@ -148,6 +152,9 @@ def main(args):
     #  - Check the input
     if args.tracer not in ['Gas', 'Stars']:
         raise ValueError('Tracer to fit must be either Gas or Stars.')
+    #  - Check deconvolution is possible
+    if args.deconv and not args.smear:
+        raise ValueError('Must include PSF if deconvolving the surface-brightness map.')
     #  - Check that the output directory exists, and if not create it
     if not os.path.isdir(args.odir):
         os.makedirs(args.odir)
@@ -155,6 +162,9 @@ def main(args):
     oroot = f'nirvana-manga-axisym-{args.plate}-{args.ifu}-{args.tracer}'
 
     flux_bound = (None, args.max_flux)
+
+    deconvolve_qa = None if args.deconv is None or args.skip_plots \
+                        else os.path.join(args.odir, f'{oroot}-deconvolve.png')
 
     #---------------------------------------------------------------------------
     # Read the data to fit
@@ -166,7 +176,9 @@ def main(args):
                                                      maps_path=args.root,
                                                      ignore_psf=not args.smear, covar=args.covar,
                                                      positive_definite=True, flux_bound=flux_bound,
-                                                     sb_fill=args.sb_fill_sig)
+                                                     sb_fill=args.sb_fill_sig,
+                                                     deconvolve_sb=args.deconv,
+                                                     deconvolve_qa=deconvolve_qa)
     elif args.tracer == 'Stars':
         kin = manga.MaNGAStellarKinematics.from_plateifu(args.plate, args.ifu,
                                                          daptype=args.daptype, dr=args.dr,
@@ -176,7 +188,9 @@ def main(args):
                                                          maps_path=args.root,
                                                          ignore_psf=not args.smear,
                                                          covar=args.covar, positive_definite=True,
-                                                         sb_fill=args.sb_fill_sig)
+                                                         sb_fill=args.sb_fill_sig,
+                                                         deconvolve_sb=args.deconv,
+                                                         deconvolve_qa=deconvolve_qa)
     else:
         # NOTE: Should never get here given the check above.
         raise ValueError(f'Unknown tracer: {args.tracer}')
