@@ -83,6 +83,13 @@ dev = [
 Repository = "https://github.com/briandigiorgio/NIRVANA"
 
 [project.scripts]
+nirvana_manga_asymdrift = "nirvana.scripts.manga_asymdrift:MaNGAAsymDrift.entry_point"
+nirvana_manga_axisym_collate = "nirvana.scripts.manga_axisym_collate:MaNGAAxisymCollate.entry_point"
+nirvana_manga_axisym_recover = "nirvana.scripts.manga_axisym_recover:MaNGAAxisymRecover.entry_point"
+nirvana_manga_axisym = "nirvana.scripts.manga_axisym:MaNGAAxisym.entry_point"
+nirvana_manga_catalogs = "nirvana.scripts.manga_catalogs:MaNGACatalogs.entry_point"
+nirvana_manga_download = "nirvana.scripts.manga_download:MaNGADownload.entry_point"
+nirvana = "nirvana.scripts.nirvana:Nirvana.entry_point"
 
 [build-system]
 requires = [
