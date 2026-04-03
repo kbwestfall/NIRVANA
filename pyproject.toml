@@ -35,48 +35,48 @@ classifiers = [
 ]
 requires-python = ">=3.7"
 dependencies = [ 
-    "numpy>=2.4.1",
     "astropy>=7.0",
-    "packaging>=22.0",
-    "scipy>=1.9",
-    "matplotlib>=3.7",
+    "corner>=2.2",
+    "dynesty<2.0",      # until we can test newer versions
     "IPython>=8.0.0",
-    "corner>=2.1",
-    "dynesty>=1.0",
-    "pydl>=0.7.0",
-    "tqdm>=4.57",
+    "matplotlib>=3.10",
+    "numpy>=2.4.1",
+    "packaging>=22.0",
+    "pydl>=1.0",
     "requests>=2.25",
+    "scipy>=1.17",
+    "tqdm>=4.57",
     "vorbin==3.1.4",
 ]
 
 [project.optional-dependencies]
 test = [
+    "coverage",
     "pytest>=7.0.0",
     "pytest-astropy",
     "tox",
     "pytest-cov",
-    "coverage",
 ]
 docs = [
-    "sphinx>6",
     "docutils<0.22",
+    "sphinx>6",
     "sphinx-automodapi",
+    "sphinx-autodoc-typehints>3.2",
     "sphinx-design",
     "sphinx_rtd_theme==3.0.0",
-    "sphinx-autodoc-typehints>3.2",
 ]
 dev = [
+    "coverage",
     "pytest>=7.0.0",
     "pytest-astropy",
     "tox",
     "pytest-cov",
-    "coverage",
-    "sphinx>6",
     "docutils<0.22",
+    "sphinx>6",
     "sphinx-automodapi",
+    "sphinx-autodoc-typehints>3.2",
     "sphinx-design",
     "sphinx_rtd_theme==3.0.0",
-    "sphinx-autodoc-typehints>3.2",
 ]
 
 [project.urls]
