@@ -1313,42 +1313,6 @@ class Kinematics:
             ell_abs_sig_xy, ell_grw_sig_xy, ell_fid_sig_xy \
                     = asymmetry.asymmetry_metrics(sig_xy, fid_grw, gpm=ellip_gpm)
 
-#        abs_vel_x = np.sort(np.absolute(vel_x.compressed()))
-#        n_vel_x = abs_vel_x.size
-#        grw_vel_x = 1-(np.arange(n_vel_x)+1)/n_vel_x
-#        fid_vel_x = np.percentile(abs_vel_x, fid_grw) if abs_vel_x.size > 0 \
-#                        else -np.ones(fid_grw.size, dtype=float)
-
-#        abs_vel_y = np.sort(np.absolute(vel_y.compressed()))
-#        n_vel_y = abs_vel_y.size
-#        grw_vel_y = 1-(np.arange(n_vel_y)+1)/n_vel_y
-#        fid_vel_y = np.percentile(abs_vel_y, fid_grw) if abs_vel_y.size > 0 \
-#                        else -np.ones(fid_grw.size, dtype=float)
-
-#        abs_vel_xy = np.sort(np.absolute(vel_xy.compressed()))
-#        n_vel_xy = abs_vel_xy.size
-#        grw_vel_xy = 1-(np.arange(n_vel_xy)+1)/n_vel_xy
-#        fid_vel_xy = np.percentile(abs_vel_xy, fid_grw) if abs_vel_xy.size > 0 \
-#                        else -np.ones(fid_grw.size, dtype=float)
-
-#        abs_sig_x = np.sort(np.absolute(sig_x.compressed()))
-#        n_sig_x = abs_sig_x.size
-#        grw_sig_x = 1-(np.arange(n_sig_x)+1)/n_sig_x
-#        fid_sig_x = np.percentile(abs_sig_x, fid_grw) if abs_sig_x.size > 0 \
-#                        else -np.ones(fid_grw.size, dtype=float)
-#
-#        abs_sig_y = np.sort(np.absolute(sig_y.compressed()))
-#        n_sig_y = abs_sig_y.size
-#        grw_sig_y = 1-(np.arange(n_sig_y)+1)/n_sig_y
-#        fid_sig_y = np.percentile(abs_sig_y, fid_grw) if abs_sig_y.size > 0 \
-#                        else -np.ones(fid_grw.size, dtype=float)
-#
-#        abs_sig_xy = np.sort(np.absolute(sig_xy.compressed()))
-#        n_sig_xy = abs_sig_xy.size
-#        grw_sig_xy = 1-(np.arange(n_sig_xy)+1)/n_sig_xy
-#        fid_sig_xy = np.percentile(abs_sig_xy, fid_grw) if abs_sig_xy.size > 0 \
-#                        else -np.ones(fid_grw.size, dtype=float)
-
         # Set the extent for the 2D maps
         extent = [np.amax(self.grid_x), np.amin(self.grid_x),
                   np.amin(self.grid_y), np.amax(self.grid_y)]
@@ -1634,8 +1598,6 @@ class Kinematics:
         if ellip_gpm is not None:
             asym90 = np.append(asym90, [ell_fid_sig_x[-2], ell_fid_sig_y[-2], ell_fid_sig_xy[-2]])
         ax.set_xlim([0., np.amax(asym90)*1.2])
-#        ax.set_xlim([0., np.amax([fid_sig_x[-2], fid_sig_y[-2], fid_sig_xy[-2],
-#                                  ell_fid_sig_x[-2], ell_fid_sig_y[-2], ell_fid_sig_xy[-2]])*1.2])
         ax.set_ylim([3e-2, 1.01])
         ax.set_yscale('log')
         ax.yaxis.set_major_formatter(ticker.NullFormatter())

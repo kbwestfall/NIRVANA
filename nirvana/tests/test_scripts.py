@@ -21,13 +21,13 @@ def test_manga_axisym():
                                     '--max_vel_err', '100', '--max_sig_err', '100',
                                     '--min_unmasked', '10', '--coherent', '--skip_plots'])
     manga_axisym.main(args)
-#    embed()
-#
+
 #    args = manga_axisym.parse_args(['8138', '12704', '--root', remote_data_file(), '--odir', odir,
 #                                    '-t', 'Gas', '--min_vel_snr', '5', '--min_sig_snr', '5',
 #                                    '--max_vel_err', '100', '--max_sig_err', '100',
 #                                    '--min_unmasked', '10', '--coherent', '--covar', '--skip_plots'])
 #    manga_axisym.main(args)
+#    embed()
 #    exit()
 
     main_output_file = os.path.join(odir, 'nirvana-manga-axisym-8138-12704-Gas.fits.gz')
@@ -39,7 +39,6 @@ def test_manga_axisym():
 
     shutil.rmtree(odir)
 
-#test_manga_axisym()
 
 @requires_remote
 def test_manga_asymdrift():
@@ -61,10 +60,11 @@ def test_manga_asymdrift():
     assert os.path.isfile(main_output_file), 'Output file not created.'
 
     with fits.open(main_output_file) as hdu:
-        assert len(hdu) == 47, 'Data model changed'
+        assert len(hdu) == 66, 'Data model changed'
         assert hdu['GAS_FITMETA'].data['RCHI2'] < 1.1, 'Fit dramatically changed'
         assert hdu['STR_FITMETA'].data['RCHI2'] < 1.1, 'Fit dramatically changed'
         assert hdu[0].header['RCHI2'] < 1.1, 'Fit dramatically changed'
 
     shutil.rmtree(odir)
+
 

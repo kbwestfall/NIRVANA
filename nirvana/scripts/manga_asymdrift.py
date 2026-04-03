@@ -166,7 +166,7 @@ def main(args):
     #---------------------------------------------------------------------------
     # Read the metadata and the kinematic data
     galmeta = manga.MaNGAGlobalPar(args.plate, args.ifu, redux_path=args.redux, dr=args.dr,
-                                   drpall_path=args.root)
+                                   drpall_path=args.root, dapall_path=args.root)
     gas_kin = manga.MaNGAGasKinematics.from_plateifu(args.plate, args.ifu, daptype=args.daptype,
                                                      dr=args.dr, redux_path=args.redux,
                                                      cube_path=args.root, image_path=args.root,
