@@ -1,19 +1,12 @@
 
 from IPython import embed
 
-import numpy
+import numpy as np
 
-from matplotlib import pyplot
-
-from scipy import stats, special
 from nirvana.data import manga
-from nirvana.data import util
-from nirvana.data import scatter
 from nirvana.tests.util import remote_data_file, requires_remote
 from nirvana.models.oned import HyperbolicTangent, Exponential
 from nirvana.models.axisym import AxisymmetricDisk
-from nirvana.models.bisym import BisymmetricDisk
-from nirvana.models.beam import gauss2d_kernel, ConvolveFFTW
 from nirvana.models.multitrace import MultiTracerDisk
 
 
@@ -29,7 +22,7 @@ def test_lsq_nopsf():
                            #, tie_disk=[True, False, False, False])
 
     p0 = disk.guess_par()
-    fix = numpy.zeros(p0.size, dtype=bool)
+    fix = np.zeros(p0.size, dtype=bool)
     # Fix the center
     fix[0:2] = True
 

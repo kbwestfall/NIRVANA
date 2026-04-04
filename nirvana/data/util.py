@@ -7,12 +7,9 @@ import warnings
 
 from IPython import embed
 
+from matplotlib import pyplot
 import numpy as np
 from scipy import sparse, linalg, stats, special, ndimage, spatial
-# Only used for debugging...
-from matplotlib import pyplot
-
-from astropy.stats import sigma_clip
 
 from ..models import geometry
 
@@ -319,7 +316,7 @@ def boxcar_average(arr, boxcar):
     # Perform the boxcar average over each axis and return the result
     _arr = arr.copy()
     for axis, box in zip(range(arr.ndim), _boxcar):
-        _arr = numpy.add.reduceat(_arr, numpy.arange(0, _arr.shape[axis], box), axis=axis)/box
+        _arr = np.add.reduceat(_arr, np.arange(0, _arr.shape[axis], box), axis=axis)/box
     return _arr
 
 

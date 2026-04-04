@@ -7,13 +7,11 @@ Module with a class that fits multiple tracers to a single disk.
 
 import warnings
 
+from astropy.io import fits
 from IPython import embed
-
+from matplotlib import pyplot, rc, patches, ticker, colors
 import numpy as np
 from scipy import optimize
-from matplotlib import pyplot, rc, patches, ticker, colors
-
-from astropy.io import fits
 
 from .geometry import projected_polar, disk_ellipse
 from ..data.util import select_kinematic_axis, bin_stats, growth_lim, atleast_one_decade
@@ -130,9 +128,10 @@ class MultiTracerDisk:
         # Check the result
         if self.tie_base.size != self.nbp:
             raise ValueError('Number of parameters in base tying vector incorrect!  Expected '
-                             f'{self.nbp}, found {selt.tie_base.size}.')
+                             f'{self.nbp}, found {self.tie_base.size}.')
         if not np.issubdtype(self.tie_base.dtype, bool):
             raise TypeError('Base tying vector should hold booleans!')
+
         # Reset the tying vectors
         self.retie()
 
@@ -213,9 +212,8 @@ class MultiTracerDisk:
             
         # Tie disk parameters by replacing parameter indices in disks with the
         # ones from the first disk.
-        # NOTE: This works when self.tie_disk is None, so there's no need to test for it
-        indx = np.where(self.tie_disk)[0]
-        if indx.size > 0:
+        indx = None if self.tie_disk is None else np.where(self.tie_disk)[0]
+        if indx is not None and indx.size > 0:
             for i in range(self.ntracer-1):
                 self.untie[indx + s[i+1] + self.nbp] = indx + self.nbp
 

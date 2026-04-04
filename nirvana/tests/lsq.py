@@ -1,8 +1,6 @@
 
 from IPython import embed
 
-import numpy
-
 from nirvana.data import manga
 from nirvana.tests.util import remote_data_file
 from nirvana.models.oned import HyperbolicTangent

@@ -6,7 +6,6 @@ Plotting for nirvana outputs.
 
 import numpy as np
 from matplotlib import pyplot as plt
-import matplotlib
 from mpl_toolkits.axes_grid1 import make_axes_locatable as mal
 import re
 import os
@@ -14,20 +13,11 @@ import traceback
 import multiprocessing as mp
 from functools import partial
 
-import dynesty
-import corner
-import pickle
 from glob import glob
-from tqdm import tqdm
-from astropy.io import fits
 
 from ..models.higher_order import bisym_model
-from ..models.beam import smear, ConvolveFFTW
 from ..models.geometry import projected_polar
-from ..data.manga import MaNGAStellarKinematics, MaNGAGasKinematics
-from ..data.kinematics import Kinematics
-from ..data.util import unpack
-from .fits_prep import fileprep, dynmeds, profs
+from .fits_prep import fileprep
 
 
 def summaryplot(f, plate=None, ifu=None, smearing=True, stellar=False, maxr=None, cen=True,

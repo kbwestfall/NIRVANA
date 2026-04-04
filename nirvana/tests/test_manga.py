@@ -1,12 +1,9 @@
 
 from IPython import embed
 
-import numpy
+import numpy as np
 
 from astropy.io import fits
-
-from scipy import signal
-from astropy import convolution
 
 from nirvana.data import manga
 from nirvana.data import util
@@ -25,12 +22,12 @@ def test_manga_gas_kinematics():
 
     with fits.open(maps_file) as hdu:
         eml = manga.channel_dictionary(hdu, 'EMLINE_GVEL')
-        assert numpy.array_equal(_vel, hdu['EMLINE_GVEL'].data[eml['Ha-6564']]), 'Bad read'
+        assert np.array_equal(_vel, hdu['EMLINE_GVEL'].data[eml['Ha-6564']]), 'Bad read'
 
     # Check that the binning works. NOTE: This doesn't use
-    # numpy.array_equal because the matrix multiplication used by bin()
+    # np.array_equal because the matrix multiplication used by bin()
     # leads to differences that are of order the numerical precision.
-    assert numpy.allclose(kin.bin(_vel), kin.vel), 'Rebinning is bad'
+    assert np.allclose(kin.bin(_vel), kin.vel), 'Rebinning is bad'
 
 
 @requires_remote
@@ -40,9 +37,9 @@ def test_manga_gas_kinematics_deconv():
 
     kin = manga.MaNGAGasKinematics(maps_file, cube_file=cube_file, deconvolve_sb=True)
     sb = kin.remap('sb')
-    grid_sb = numpy.ma.MaskedArray(kin.grid_sb, mask=sb.mask.copy())
+    grid_sb = np.ma.MaskedArray(kin.grid_sb, mask=sb.mask.copy())
 
-    assert numpy.ma.sqrt(numpy.ma.mean((sb - grid_sb)**2)) > 1, 'Deconvolved image changed'
+    assert np.ma.sqrt(np.ma.mean((sb - grid_sb)**2)) > 1, 'Deconvolved image changed'
 
 
 @requires_remote
@@ -55,12 +52,12 @@ def test_manga_stellar_kinematics():
 
     # Check that the input map is correctly reproduced
     with fits.open(maps_file) as hdu:
-        assert numpy.array_equal(_vel, hdu['STELLAR_VEL'].data), 'Bad read'
+        assert np.array_equal(_vel, hdu['STELLAR_VEL'].data), 'Bad read'
 
     # Check that the binning works. NOTE: This doesn't use
-    # numpy.array_equal because the matrix multiplication used by bin()
+    # np.array_equal because the matrix multiplication used by bin()
     # leads to differences that are of order the numerical precision.
-    assert numpy.allclose(kin.bin(_vel), kin.vel), 'Rebinning is bad'
+    assert np.allclose(kin.bin(_vel), kin.vel), 'Rebinning is bad'
 
 
 @requires_remote
@@ -70,9 +67,9 @@ def test_manga_stellar_kinematics_deconv():
 
     kin = manga.MaNGAStellarKinematics(maps_file, cube_file=cube_file, deconvolve_sb=True)
     sb = kin.remap('sb')
-    grid_sb = numpy.ma.MaskedArray(kin.grid_sb, mask=sb.mask.copy())
+    grid_sb = np.ma.MaskedArray(kin.grid_sb, mask=sb.mask.copy())
 
-    assert numpy.ma.sqrt(numpy.ma.mean((sb - grid_sb)**2)) > 0.2, 'Deconvolved image changed'
+    assert np.ma.sqrt(np.ma.mean((sb - grid_sb)**2)) > 0.2, 'Deconvolved image changed'
 
 
 @requires_remote
@@ -101,31 +98,31 @@ def test_targeting_bits():
                                             mngtarg3=hdu[0].header['MNGTARG1']) \
                 == (True, False, True, False), 'Incorrect targeting parsing'
 
-    mngtarg1 = numpy.array([hdu[0].header['MNGTARG1'], hdu[0].header['MNGTARG1']])
-    mngtarg3 = numpy.array([hdu[0].header['MNGTARG3'], hdu[0].header['MNGTARG3']])
+    mngtarg1 = np.array([hdu[0].header['MNGTARG1'], hdu[0].header['MNGTARG1']])
+    mngtarg3 = np.array([hdu[0].header['MNGTARG3'], hdu[0].header['MNGTARG3']])
 
     pp, s, a, o = manga.parse_manga_targeting_bits(mngtarg1, mngtarg3=mngtarg3)
-    assert numpy.array_equal(pp, [True, True]), 'Bad array parsing'
+    assert np.array_equal(pp, [True, True]), 'Bad array parsing'
 
 
 def test_covar_fake():
 
     # Make a fake inverse variance map
-    ivar = numpy.zeros((30,30), dtype=float)
-    ivar[10:20,10:20] = util.boxcar_replicate(numpy.sqrt(numpy.arange(25)+1).reshape(5,5), 2)
+    ivar = np.zeros((30,30), dtype=float)
+    ivar[10:20,10:20] = util.boxcar_replicate(np.sqrt(np.arange(25)+1).reshape(5,5), 2)
 
     # And an associated fake binning map
-    binid = numpy.full(ivar.shape, -1, dtype=int)
-    binid[10:20,10:20] = util.boxcar_replicate(numpy.arange(25).reshape(5,5), 2)
+    binid = np.full(ivar.shape, -1, dtype=int)
+    binid[10:20,10:20] = util.boxcar_replicate(np.arange(25).reshape(5,5), 2)
 
     _, covar = manga.manga_map_covar(ivar, binid=binid, fill=True)
     gpm, subcovar = manga.manga_map_covar(ivar, binid=binid, fill=False)
 
     # NOTE: this assert is already done by the manga_map_covar method at the moment.
-    assert numpy.allclose(subcovar.diagonal(), 1./ivar[gpm]), \
+    assert np.allclose(subcovar.diagonal(), 1./ivar[gpm]), \
             'Incorrect variances along the diagonal of the covariance matrix'
 
-    assert numpy.array_equal(covar[numpy.ix_(gpm.ravel(),gpm.ravel())].toarray(),
+    assert np.array_equal(covar[np.ix_(gpm.ravel(),gpm.ravel())].toarray(),
                              subcovar.toarray()), 'Failed in filling the covariance array'
 
 
@@ -139,7 +136,7 @@ def test_inv_covar():
     # Invert it
     icov = util.cinv(cov.toarray())
     # Check that you get back the identity matrix
-    assert numpy.std(numpy.diag(numpy.dot(icov, cov.toarray())) - 1.) < 1e-4, \
+    assert np.std(np.diag(np.dot(icov, cov.toarray())) - 1.) < 1e-4, \
             'Multiplication by inverse matrix does not accurately produce identity matrix'
 
 
@@ -186,7 +183,7 @@ def test_sbholes():
 
     _sb = util.gaussian_fill(sb)
 
-    assert numpy.sum(_sb - sb.filled(0.0) > 0) > 250, 'Number of fixed spaxels changed.'
+    assert np.sum(_sb - sb.filled(0.0) > 0) > 250, 'Number of fixed spaxels changed.'
 
 
 @requires_remote
@@ -196,7 +193,7 @@ def test_remap_covar():
     # Read the data directly
     with fits.open(maps_file) as hdu:
         binid = hdu['BINID'].data[1]
-        ivar = numpy.ma.MaskedArray(hdu['STELLAR_VEL_IVAR'].data,
+        ivar = np.ma.MaskedArray(hdu['STELLAR_VEL_IVAR'].data,
                                     mask=hdu['STELLAR_VEL_MASK'].data>0)
 
     # And setup the covariance
@@ -212,14 +209,14 @@ def test_remap_covar():
     _bt[_bt > 0] = 1.
     _covar = util.fill_matrix(_bt.dot(bin_covar.dot(_bt.T)), gpm.ravel())
 
-    assert numpy.allclose(_covar.toarray(), covar.toarray()), \
+    assert np.allclose(_covar.toarray(), covar.toarray()), \
             'Bad covariance reconstruction'
 
     # Do the same thing using the Kinematics class
     kin = manga.MaNGAStellarKinematics(maps_file, covar=True)
     vel_covar = kin.remap_covar('vel_covar')
 
-    assert numpy.allclose(covar.toarray(), vel_covar.toarray()), \
+    assert np.allclose(covar.toarray(), vel_covar.toarray()), \
             'Bad Kinematics covariance reconstruction'
 
 
@@ -231,7 +228,7 @@ def test_copy():
     _kin = kin.copy()
 
     assert kin.vel is not _kin.vel, 'Velocity array points to the same object'
-    assert numpy.array_equal(kin.vel, _kin.vel), 'Velocity data should be identical'
+    assert np.array_equal(kin.vel, _kin.vel), 'Velocity data should be identical'
     assert kin.nbin == _kin.nbin, 'Number of bins is not the same'
 
 

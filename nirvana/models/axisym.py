@@ -19,10 +19,9 @@ from .geometry import projected_polar, deriv_projected_polar, disk_ellipse
 from .beam import smear, deriv_smear
 from . import oned 
 from . import asymmetry
-from ..data.kinematics import Kinematics
 from ..data.scatter import IntrinsicScatter
-from ..data.util import inverse, find_largest_coherent_region
-from ..data.util import select_kinematic_axis, bin_stats, growth_lim, atleast_one_decade
+from ..data.util import inverse
+from ..data.util import select_kinematic_axis, growth_lim, atleast_one_decade
 from ..util import plot
 from ..util import fileio
 
@@ -520,139 +519,139 @@ def _fit_meta_dtype(par_names, nr, parbitmask):
         :obj:`list`: The list of tuples providing the name, data type, and shape
         of each `numpy.recarray`_ column.
     """
-    gp = [(f'G_{n}'.upper(), np.float) for n in par_names]
-    lbp = [(f'LB_{n}'.upper(), np.float) for n in par_names]
-    ubp = [(f'UB_{n}'.upper(), np.float) for n in par_names]
-    bp = [(f'F_{n}'.upper(), np.float) for n in par_names]
-    bpe = [(f'E_{n}'.upper(), np.float) for n in par_names]
+    gp = [(f'G_{n}'.upper(), float) for n in par_names]
+    lbp = [(f'LB_{n}'.upper(), float) for n in par_names]
+    ubp = [(f'UB_{n}'.upper(), float) for n in par_names]
+    bp = [(f'F_{n}'.upper(), float) for n in par_names]
+    bpe = [(f'E_{n}'.upper(), float) for n in par_names]
     mp = [(f'M_{n}'.upper(), parbitmask.minimum_dtype()) for n in par_names]
     
     return [('MANGAID', '<U30'),
             ('PLATEIFU', '<U12'),
             ('PLATE', np.int16),
             ('IFU', np.int16),
-            ('DRPALLINDX', np.int),
-            ('DAPALLINDX', np.int),
+            ('DRPALLINDX', int),
+            ('DAPALLINDX', int),
             ('MNGTARG1', np.int32),
             ('MNGTARG3', np.int32),
             ('DRP3QUAL', np.int32),
             ('DAPQUAL', np.int32),
-            ('OBJRA', np.float),
-            ('OBJDEC', np.float),
+            ('OBJRA', float),
+            ('OBJDEC', float),
             # Redshift used by the DAP to (nominally) offset the velocity field
             # to 0 bulk velocity.
-            ('Z', np.float),
+            ('Z', float),
             # The conversion factor used to convert arcseconds to kpc
-            ('ASEC2KPC', np.float),
+            ('ASEC2KPC', float),
             # The photometric data used; should be elpetro or sersic
             ('PHOTKEY', '<U8'),
             # NSA-fit effective radius in arcseconds
-            ('REFF', np.float),
+            ('REFF', float),
             # NSA-fit Sersic index
-            ('SERSICN', np.float),
+            ('SERSICN', float),
             # NSA-fit position angle
-            ('PA', np.float),
+            ('PA', float),
             # NSA-fit ellipticity
-            ('ELL', np.float),
+            ('ELL', float),
             # Assumed intrinsic oblateness
-            ('Q0', np.float),
+            ('Q0', float),
             # VNFIT is the total number of velocity measurements included in the
             # fit.
-            ('VNFIT', np.int),
+            ('VNFIT', int),
             # VNMSK is the number of velocity measurements masked for any
             # reason, including those measurements that were already masked by
             # the DAP.
-            ('VNMSK', np.int),
+            ('VNMSK', int),
             # VNFLAG is the number of velocity measurements masked by the fit for
             # any reason, meaning it does *not* include data already masked by
             # the DAP.
-            ('VNFLAG', np.int),
+            ('VNFLAG', int),
             # VNREJ is the number of velocity measurements masked by the fit
             # only due to outlier rejection.
-            ('VNREJ', np.int),
+            ('VNREJ', int),
             # VMEDE is the median observed error in the data included in the
             # fit.
-            ('VMEDE', np.float),
+            ('VMEDE', float),
             # VMENR is the mean of the error-normalized residuals of the data
             # included in the fit.
-            ('VMENR', np.float),
+            ('VMENR', float),
             # VSIGR is the standard deviation of the error-normalized residuals
             # of the data included in the fit.
-            ('VSIGR', np.float),
+            ('VSIGR', float),
             # VGRWR is the 1-, 2-, and 3-sigma growth and the maximum value of
             # the error-normalized residuals of the data included in the fit.
-            ('VGRWR', np.float, (4,)),
+            ('VGRWR', float, (4,)),
             # VISCT is the intrinsic scatter term used in the fit.
-            ('VISCT', np.float),
+            ('VISCT', float),
             # VSIGIR is the same as VSIGR but includes the intrinsic scatter
             # modification of the erro.
-            ('VSIGIR', np.float),
+            ('VSIGIR', float),
             # VGRWIR is the same as VGRWR but includes the intrinsic scatter
             # modification of the erro.
-            ('VGRWIR', np.float, (4,)),
+            ('VGRWIR', float, (4,)),
             # VCHI2 is the reduced chi-square only for the velocity data and
             # excluding the instrinsic scatter modification of the error.
-            ('VCHI2', np.float),
+            ('VCHI2', float),
             # VASYM is the 50%, 80%, and 90% growth and RMS of the 3 asymmetry
             # maps; the "_ELL" version is after considering only data within an
             # ellipse of radius "VASYM_ELL_R".
-            ('VASYM', np.float, (3,4)),
-            ('VASYM_ELL_R', np.float),
-            ('VASYM_ELL', np.float, (3,4)),
+            ('VASYM', float, (3,4)),
+            ('VASYM_ELL_R', float),
+            ('VASYM_ELL', float, (3,4)),
             # SNFIT is the total number of dispersion measurements included in
             # the fit.
-            ('SNFIT', np.int),
+            ('SNFIT', int),
             # SNMSK is the number of dispersion measurements masked for any
             # reason, including those measurements that were already masked by
             # the DAP.
-            ('SNMSK', np.int),
+            ('SNMSK', int),
             # SNFLAG is the number of dispersion measurements masked by the fit
             # for any reason, meaning it does *not* include data already masked
             # by the DAP.
-            ('SNFLAG', np.int),
+            ('SNFLAG', int),
             # SNREJ is the number of dispersion measurements masked by the fit
             # only due to outlier rejection.
-            ('SNREJ', np.int),
+            ('SNREJ', int),
             # Same as VMEDE, but for the velocity dispersion instead of the
             # velocity.
-            ('SMEDE', np.float),
+            ('SMEDE', float),
             # Same as VMENR, but for the velocity dispersion instead of the
             # velocity.
-            ('SMENR', np.float),
+            ('SMENR', float),
             # Same as VSIGR, but for the velocity dispersion instead of the
             # velocity.
-            ('SSIGR', np.float),
+            ('SSIGR', float),
             # Same as VGRWR, but for the velocity dispersion instead of the
             # velocity.
-            ('SGRWR', np.float, (4,)),
+            ('SGRWR', float, (4,)),
             # Same as VISCT, but for the velocity dispersion instead of the
             # velocity.
-            ('SISCT', np.float),
+            ('SISCT', float),
             # Same as VSIGIR, but for the velocity dispersion instead of the
             # velocity.
-            ('SSIGIR', np.float),
+            ('SSIGIR', float),
             # Same as VGRWIR, but for the velocity dispersion instead of the
             # velocity.
-            ('SGRWIR', np.float, (4,)),
+            ('SGRWIR', float, (4,)),
             # Same as VCHI2, but for the velocity dispersion instead of the
             # velocity.
-            ('SCHI2', np.float),
+            ('SCHI2', float),
             # Same as VASYM but for the velocity dispersion, instead of the
             # velocity.  Note that sigma is calculated as sigma/sqrt(abs(sigma))
             # as a way of calculating the sqrt while maintaining the sign.
             # TODO: Revisit the sigma asymmetry calculations!
-            ('SASYM', np.float, (3,4)),
-            ('SASYM_ELL_R', np.float),
-            ('SASYM_ELL', np.float, (3,4)),
+            ('SASYM', float, (3,4)),
+            ('SASYM_ELL_R', float),
+            ('SASYM_ELL', float, (3,4)),
             # The total chi-square of the fit, includeing the intrinsic scatter
             # modification of the error.
-            ('CHI2', np.float),
+            ('CHI2', float),
             # Reduced chi-square
-            ('RCHI2', np.float),
+            ('RCHI2', float),
             # Status index of the fit returned by scipy.optimize.least_squares
-            ('STATUS', np.int),
+            ('STATUS', int),
             # Flag that the fit (scipy.optimize) reported a successful fit
-            ('SUCCESS', np.int),
+            ('SUCCESS', int),
             # Azimuthally binned radial profiles
             ('BINR', float, (nr,)),
             ('V_MAJ', float, (nr,)),

@@ -1,19 +1,12 @@
 
 from IPython import embed
 
-import numpy
+import numpy as np
 
-from matplotlib import pyplot
-
-from scipy import stats, special
 from nirvana.data import manga
-from nirvana.data import util
-from nirvana.data import scatter
 from nirvana.tests.util import remote_data_file, requires_remote
-from nirvana.models.oned import HyperbolicTangent, Exponential
-from nirvana.models.axisym import AxisymmetricDisk
 from nirvana.models.bisym import BisymmetricDisk
-from nirvana.models.beam import gauss2d_kernel, ConvolveFFTW
+from nirvana.models.beam import gauss2d_kernel
 
 
 def test_disk():
@@ -36,15 +29,15 @@ def test_disk():
     disk.par[13] = 2.       # 2nd order tangential power
 
     n = 71
-    x = (numpy.arange(n) - n//2).astype(float)[::-1]
-    y = (numpy.arange(n) - n//2).astype(float)
-    x, y = numpy.meshgrid(x, y)
+    x = (np.arange(n) - n//2).astype(float)[::-1]
+    y = (np.arange(n) - n//2).astype(float)
+    x, y = np.meshgrid(x, y)
 
     vel = disk.model(x=x, y=y)
     beam = gauss2d_kernel(n, 3.)
     _vel = disk.model(x=x, y=y, beam=beam)
 
-    assert numpy.isclose(vel[n//2,n//2], _vel[n//2,n//2]), 'Smearing moved the center.'
+    assert np.isclose(vel[n//2,n//2], _vel[n//2,n//2]), 'Smearing moved the center.'
 
 
 #@requires_remote

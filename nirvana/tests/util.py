@@ -4,16 +4,15 @@ Testing utilities
 
 # TODO: Put most/all of this in nirvana/tests/__init__.py ?
 
+from importlib import resources
 import os
 import warnings
 
 import pytest
 
-from pkg_resources import resource_filename
-
 def data_file(filename=None):
-    root = resource_filename('nirvana', 'data')
-    return root if filename is None else os.path.join(root, filename)
+    root = resources.files('nirvana') / 'data'
+    return str(root) if filename is None else str(root / filename)
 
 def test_data_file(filename=None):
     root = os.path.join(data_file(), 'tests')
@@ -35,8 +34,6 @@ def remote_dap_test_files(daptype='HYB10-MILESHC-MASTARHC2'):
     return ['manga-8138-12704-MAPS-{0}.fits.gz'.format(daptype),
             'manga-8078-12703-MAPS-{0}.fits.gz'.format(daptype)]
 
-#drp_test_version = 'v3_0_1'
-#dap_test_version = '3.0.1'
 drp_test_version = 'v3_1_1'
 dap_test_version = '3.1.0'
 dap_test_daptype = 'HYB10-MILESHC-MASTARHC2'

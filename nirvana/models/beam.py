@@ -573,8 +573,9 @@ def deconvolve(data, kernel, niter, mask=None, cnvfftw=None, return_model=False)
     # Construct the FFT of the kernel and its transpose.  Calculated once to
     # speed up iterations.
     # TODO: Use ConvolveFFTW.fft() instead?
-    fft_kern = np.fft.fftn(np.fft.ifftshift(kernel))
-    fft_flipkern = np.fft.fftn(np.fft.ifftshift(kernel_flip(kernel)))
+    _kernel = kernel.astype(np.float64)
+    fft_kern = np.fft.fftn(np.fft.ifftshift(_kernel))
+    fft_flipkern = np.fft.fftn(np.fft.ifftshift(kernel_flip(_kernel)))
 
     # Get the data and its mask
     _data = data.data.copy() if isinstance(data, np.ma.MaskedArray) else data.copy()
@@ -592,21 +593,10 @@ def deconvolve(data, kernel, niter, mask=None, cnvfftw=None, return_model=False)
 
     # Perform the deconvolution
     dcnv_data = _data.copy()
-#    total_flux = np.sum(_data)
-#    model_flux = np.zeros(niter, dtype=float)
-#    model_rms = np.zeros(niter, dtype=float)
     for i in range(niter):
         _dcnv_data = _cnv(dcnv_data*_fgpm, fft_kern, kernel_fft=True) * inv_cnv_gpm
         corr = _data/(_dcnv_data + (_dcnv_data == 0.0))
         dcnv_data *= _cnv(corr*_fgpm, fft_flipkern, kernel_fft=True) * inv_cnv_flipgpm
-#        test_sb = _cnv(dcnv_data * _fgpm, fft_kern, kernel_fft=True) * inv_cnv_gpm * _fgpm
-#        model_flux[i] = np.sum(test_sb)
-#        model_rms[i] = np.sqrt(np.mean(np.square(_data - test_sb)))
-
-#    from matplotlib import pyplot
-#    pyplot.scatter(np.arange(niter), model_flux/total_flux-1., color='C0', marker='.', s=30)
-#    pyplot.scatter(np.arange(niter), model_rms*100, color='C1', marker='.', s=30)
-#    pyplot.show()
 
     if not return_model:
         return dcnv_data, np.logical_not(_gpm)

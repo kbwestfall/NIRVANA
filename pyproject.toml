@@ -1,0 +1,149 @@
+[project]
+name = "nirvana"
+dynamic = ["version"]
+authors = [
+    { name = "Brian DiGiorgio Zanger", email = "bzanger1@swarthmore.edu" },
+    { name = "Kyle B. Westfall", email = "westfall@ucolick.org" }
+]
+license = {file = "LICENSE.md"}
+description = "General modeling of 2D kinematic maps of disk galaxies"
+keywords = [
+    "astronomy",
+    "disk galaxies",
+    "kinematics",
+    "modeling",
+]
+readme = "README.md"
+classifiers = [
+    'Development Status :: 4 - Beta',
+    'Intended Audience :: Science/Research',
+    'License :: OSI Approved :: BSD License',
+    'Natural Language :: English',
+    'Operating System :: OS Independent',
+    'Programming Language :: Python',
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    'Topic :: Documentation :: Sphinx',
+    'Topic :: Scientific/Engineering :: Astronomy',
+    'Topic :: Software Development :: Libraries :: Python Modules',
+    'Topic :: Software Development :: User Interfaces'
+]
+requires-python = ">=3.11"
+dependencies = [ 
+    "astropy>=7.0",
+    "corner>=2.2",
+    "dynesty<2.0",      # until we can test newer versions
+    "IPython>=8.0.0",
+    "matplotlib>=3.10",
+    "numpy>=2.4.1",
+    "packaging>=22.0",
+    "pydl>=1.0",
+    "requests>=2.25",
+    "scipy>=1.17",
+    "tqdm>=4.57",
+    "vorbin==3.1.4",
+]
+
+[project.optional-dependencies]
+fftw = [
+    "pyfftw>=0.14",
+]
+test = [
+    "coverage",
+    "pytest>=7.0.0",
+    "pytest-astropy",
+    "tox",
+    "pytest-cov",
+]
+docs = [
+    "docutils<0.22",
+    "sphinx>6",
+    "sphinx-automodapi",
+    "sphinx-autodoc-typehints>3.2",
+    "sphinx-design",
+    "sphinx_rtd_theme==3.0.0",
+]
+dev = [
+    "pyfftw>=0.14",
+    "coverage",
+    "pytest>=7.0.0",
+    "pytest-astropy",
+    "tox",
+    "pytest-cov",
+    "docutils<0.22",
+    "sphinx>6",
+    "sphinx-automodapi",
+    "sphinx-autodoc-typehints>3.2",
+    "sphinx-design",
+    "sphinx_rtd_theme==3.0.0",
+]
+
+[project.urls]
+Repository = "https://github.com/briandigiorgio/NIRVANA"
+
+[project.scripts]
+nirvana_manga_asymdrift = "nirvana.scripts.manga_asymdrift:MaNGAAsymDrift.entry_point"
+nirvana_manga_axisym_collate = "nirvana.scripts.manga_axisym_collate:MaNGAAxisymCollate.entry_point"
+nirvana_manga_axisym_recover = "nirvana.scripts.manga_axisym_recover:MaNGAAxisymRecover.entry_point"
+nirvana_manga_axisym = "nirvana.scripts.manga_axisym:MaNGAAxisym.entry_point"
+nirvana_manga_catalogs = "nirvana.scripts.manga_catalogs:MaNGACatalogs.entry_point"
+nirvana_manga_download = "nirvana.scripts.manga_download:MaNGADownload.entry_point"
+nirvana = "nirvana.scripts.nirvana:Nirvana.entry_point"
+
+[build-system]
+requires = [
+    "setuptools",
+    "setuptools_scm",
+    "oldest-supported-numpy",
+    "cython>=0.29.14"
+]
+build-backend = 'setuptools.build_meta'
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages]
+find = {}
+
+[tool.setuptools_scm]
+version_file = "nirvana/version.py"
+
+[tool.pytest.ini_options]
+minversion = 7.0
+testpaths = [
+    "nirvana",
+]
+
+[tool.coverage]
+
+    [tool.coverage.run]
+        omit = [
+            "nirvana/_astropy_init*",
+            "nirvana/conftest.py",
+            "nirvana/*setup_package*",
+            "nirvana/tests/*",
+            "nirvana/*/tests/*",
+            "nirvana/extern/*",
+            "nirvana/version*",
+            "*/nirvana/_astropy_init*",
+            "*/nirvana/conftest.py",
+            "*/nirvana/*setup_package*",
+            "*/nirvana/tests/*",
+            "*/nirvana/*/tests/*",
+            "*/nirvana/extern/*",
+            "*/nirvana/version*",
+        ]
+
+    [tool.coverage.report]
+        exclude_lines = [
+            "pragma: no cover",
+            "except ImportError",
+            "raise AssertionError",
+            "raise NotImplementedError",
+            "'def main(.*):'",
+            "pragma: py{ignore_python_version}",
+            "def _ipython_key_completions_",
+        ]
+

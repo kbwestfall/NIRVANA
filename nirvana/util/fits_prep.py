@@ -6,7 +6,6 @@ Various utilities for use with fits files.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import sys
 import os
 from glob import glob
 import traceback
@@ -14,12 +13,13 @@ import pickle
 import re
 
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 
 import dynesty
 from astropy.io import fits
-from astropy.table import Table,Column
+from astropy.table import Table
 from tqdm import tqdm
 
 from ..models.higher_order import bisym_model

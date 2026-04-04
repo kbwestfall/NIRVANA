@@ -396,7 +396,7 @@ class ThinDisk:
         if beam is None:
             # Nothing to do
             return
-
+        
         # Check it makes sense to define the beam
         if self.x is None:
             raise ValueError('Input coordinates must be instantiated first!')
@@ -921,7 +921,7 @@ class ThinDisk:
 
         if add_err:
             # Check: Dispersion model not defined but error and mask provided
-            if self.dc is None and any([s is not None for s in [_sig_ivar, _sig_covar, _sig_mask]]):
+            if self.dc is None and any([s is not None for s in [_sig_ivar, _sig_covar, sig_mask]]):
                 warnings.warn('AxisymmetricDisk instance does not include dispersion profile '
                                 'model.  Ignoring provided dispersion errors and mask.')
             # Check: Dispersion model available and mismatch between availability of errors
@@ -1179,7 +1179,7 @@ class ThinDisk:
         """
         vel, sig = self.binned_model(par)
         vfom = self._v_resid(vel)
-        sfom = numpy.array([]) if self.dc is None else self._s_resid(sig)
+        sfom = np.array([]) if self.dc is None else self._s_resid(sig)
         return (vfom, sfom) if sep else np.append(vfom, sfom)
 
     def _deriv_resid(self, par, sep=False):
@@ -1204,8 +1204,7 @@ class ThinDisk:
         """
         vel, sig, dvel, dsig = self.deriv_binned_model(par)
         if self.dc is None:
-            return (self._deriv_v_resid(dvel), numpy.array([])) \
-                        if sep else self._deriv_v_resid(dvel)
+            return (self._deriv_v_resid(dvel), np.array([])) if sep else self._deriv_v_resid(dvel)
         resid = (self._deriv_v_resid(vel), self._deriv_s_resid(sig, dsig))
         return resid if sep else np.vstack(resid)
 
@@ -1262,7 +1261,7 @@ class ThinDisk:
         vel, sig, dvel, dsig = self.deriv_binned_model(par)
         vf = self._deriv_v_chisqr_covar if self.has_covar else self._deriv_v_chisqr
         if self.dc is None:
-            return (vf(dvel), numpy.array([])) if sep else vf(dvel)
+            return (vf(dvel), np.array([])) if sep else vf(dvel)
 
         sf = self._deriv_s_chisqr_covar if self.has_covar else self._deriv_s_chisqr
         dchisqr = (vf(dvel), sf(sig, dsig))
