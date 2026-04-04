@@ -47,6 +47,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+fftw = [
+    "pyfftw>=0.14",
+]
 test = [
     "coverage",
     "pytest>=7.0.0",
@@ -63,6 +66,7 @@ docs = [
     "sphinx_rtd_theme==3.0.0",
 ]
 dev = [
+    "pyfftw>=0.14",
     "coverage",
     "pytest>=7.0.0",
     "pytest-astropy",

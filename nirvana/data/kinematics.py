@@ -313,37 +313,41 @@ class Kinematics:
 
         Args:
             psf (`numpy.ndarray`_):
-                An image of the point-spread function of the
-                observations. If ``aperture`` is None, this should be
-                the effective smoothing kernel for the kinematic
-                fields. Otherwise, this is the on-sky seeing kernel
-                and the effective smoothing kernel is constructed as
-                the convolution of this image with ``aperture``. If
-                None, the kernel will be set to the ``aperture``
-                value (if provided) or None.
+                An image of the point-spread function of the observations. If
+                ``aperture`` is None, this should be the effective smoothing
+                kernel for the kinematic fields. Otherwise, this is the on-sky
+                seeing kernel and the effective smoothing kernel is constructed
+                as the convolution of this image with ``aperture``. If None, the
+                kernel will be set to the ``aperture`` value (if provided) or
+                None.  Note that this is upcast to ``np.float64`` if it is
+                provided with lower precision.
             aperture (`numpy.ndarray`_):
-                Monochromatic image of the spectrograph aperture. If
-                ``psf`` is None, this should be the effective
-                smoothing kernel for the kinematic fields. Otherwise,
-                this is the on-sky representation of the spectrograph
-                aperture and the effective smoothing kernel is
-                constructed as the convolution of this image with
-                ``psf``. If None, the kernel will be set to the
-                ``psf`` value (if provided) or None.
+                Monochromatic image of the spectrograph aperture. If ``psf`` is
+                None, this should be the effective smoothing kernel for the
+                kinematic fields. Otherwise, this is the on-sky representation
+                of the spectrograph aperture and the effective smoothing kernel
+                is constructed as the convolution of this image with ``psf``. If
+                None, the kernel will be set to the ``psf`` value (if provided)
+                or None.  Note that this is upcast to ``np.float64`` if it is
+                provided with lower precision.
         """
+        _psf = None if psf is None else psf.astype(np.float64)
+        _aperture = None if aperture is None else aperture.astype(np.float64)
         if psf is None and aperture is None:
             self.beam = None
             self.beam_fft = None
             return
         if psf is None:
-            self.beam = aperture/np.sum(aperture)
-            self.beam_fft = np.fft.fftn(np.fft.ifftshift(aperture))
+            self.beam = _aperture/np.sum(_aperture)
+            self.beam_fft = np.fft.fftn(np.fft.ifftshift(_aperture))
             return
         if aperture is None:
-            self.beam = psf/np.sum(psf)
-            self.beam_fft = np.fft.fftn(np.fft.ifftshift(psf))
+            self.beam = _psf/np.sum(_psf)
+            self.beam_fft = np.fft.fftn(np.fft.ifftshift(_psf))
             return
-        self.beam_fft = construct_beam(psf/np.sum(psf), aperture/np.sum(aperture), return_fft=True)
+        self.beam_fft = construct_beam(
+            _psf/np.sum(_psf), _aperture/np.sum(_aperture), return_fft=True
+        )
         self.beam = np.fft.fftshift(np.fft.ifftn(self.beam_fft).real)
 
     def _ingest(self, data, ivar, mask):

@@ -396,7 +396,7 @@ class ThinDisk:
         if beam is None:
             # Nothing to do
             return
-
+        
         # Check it makes sense to define the beam
         if self.x is None:
             raise ValueError('Input coordinates must be instantiated first!')
