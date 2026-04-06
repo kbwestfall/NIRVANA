@@ -22,6 +22,7 @@ from astropy.io import fits
 from astropy.table import Table
 from tqdm import tqdm
 
+from nirvana import log
 from ..models.higher_order import bisym_model
 from ..models.geometry import projected_polar
 from ..models.asymmetry import asymmetry
@@ -122,7 +123,7 @@ def profs(samp, args, plot=None, stds=False, jump=None, **kwargs):
         paramdict = unpack(meds, args, jump=jump, relative_pab=False)
         paramdict['incl'], paramdict['pal'], paramdict['pabl'], paramdict['vsysl'] = lstd[:4]
         paramdict['incu'], paramdict['pau'], paramdict['pabu'], paramdict['vsysu'] = ustd[:4]
-        print('*'*20, paramdict['pab'], paramdict['pabl'], paramdict['pabu'])
+        log.info('*'*20, paramdict['pab'], paramdict['pabl'], paramdict['pabu'])
         if args.nglobs == 6:
             paramdict['xcl'], paramdict['ycl'] = lstd[4:6]
             paramdict['xcu'], paramdict['ycu'] = ustd[4:6]
@@ -302,7 +303,7 @@ def fileprep(f, plate=None, ifu=None, smearing=None, stellar=False, maxr=None,
             else:
                 kin = MaNGAGasKinematics.from_plateifu(plate,ifu, ignore_psf=not smearing, remotedir=remotedir)
 
-        print(stellar)
+        log.info(stellar)
     #set relevant parameters for galaxy
     if isinstance(kin, FitArgs): args = kin
     else: args = FitArgs(kin, smearing=smearing, scatter=scatter)
@@ -322,7 +323,7 @@ def fileprep(f, plate=None, ifu=None, smearing=None, stellar=False, maxr=None,
     #get appropriate number of edges  by looking at length of meds
     nbins = (len(meds) - args.nglobs - fixcent - 2*args.scatter)/4
     if not nbins.is_integer(): 
-        print(len(meds), args.nglobs, fixcent, 2*args.scatter, nbins)
+        log.info(len(meds), args.nglobs, fixcent, 2*args.scatter, nbins)
         raise ValueError('Dynesty output array has a bad shape.')
     else: nbins = int(nbins)
 
@@ -393,8 +394,8 @@ def extractfile(f, remotedir=None, gal=None, galmeta=None):
 
     #failure if bad file
     except Exception:
-        print(f'Extraction of {f} failed:')
-        print(traceback.format_exc())
+        log.info(f'Extraction of {f} failed:')
+        log.info(traceback.format_exc())
         args, arc, asymmap, resdict = (None, None, None, None)
 
     return args, arc, asymmap, resdict
@@ -499,14 +500,14 @@ def dictformatting(d, drp=None, dap=None, padding=20, fill=-9999, drpalldir='.',
         sigmask[:len(d['sig'])] = False
 
         #corresponding indicies in dapall and drpall
-        print(d['plate'],d['ifu'])
+        log.info(d['plate'],d['ifu'])
         drpindex = np.where(drp['plateifu'] == f"{d['plate']}-{d['ifu']}")[0][0]
         dapindex = np.where(dap['plateifu'] == f"{d['plate']}-{d['ifu']}")[0][0]
         data += [velmask, sigmask, drpindex, dapindex]
 
     #failure for empty dict
     except Exception as e:
-        print(traceback.format_exc())
+        log.info(traceback.format_exc())
         data = None
 
     return data
@@ -551,7 +552,7 @@ def makealltable(fname='', datadir='.', vftype='', outfile=None, mangadir=None):
     if len(fs) == 0:
         raise FileNotFoundError(f'No matching FITS files found in directory "{datadir}"')
     else:
-        print(len(fs), 'files found...')
+        log.info(len(fs), 'files found...')
 
     #combine all fits tables into one list
     tables = []
@@ -559,7 +560,7 @@ def makealltable(fname='', datadir='.', vftype='', outfile=None, mangadir=None):
         try: 
             with fits.open(f, memmap=False) as fi:
                 tables += [fi[1].data]
-        except Exception as e: print(f, 'failed:', e)
+        except Exception as e: log.info(f, 'failed:', e)
 
     #make names and dtypes for columns
     names = None

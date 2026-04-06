@@ -15,6 +15,7 @@ from matplotlib import pyplot, rc, patches, ticker, colors
 
 from astropy.io import fits
 
+from nirvana import log
 from .geometry import projected_polar, deriv_projected_polar, disk_ellipse
 from .beam import smear, deriv_smear
 from . import oned 
@@ -415,7 +416,7 @@ class AxisymmetricDisk(ThinDisk):
                 See :class:`~nirvana.multitrace.MultiTracerDisk`.
         """
         if self.par is None:
-            print('No parameters to report.')
+            log.info('No parameters to report.')
             return
 
         vfom, sfom = self._get_fom()(self.par, sep=True)
@@ -423,20 +424,20 @@ class AxisymmetricDisk(ThinDisk):
         max_parn_len = max([len(n) for n in parn])+4
 
         if not component:
-            print('-'*70)
-            print(f'{"Fit Result":^70}')
-            print('-'*70)
+            log.info('-'*70)
+            log.info(f'{"Fit Result":^70}')
+            log.info('-'*70)
             if fit_message is not None:
-                print(f'Fit status message: {fit_message}')
+                log.info(f'Fit status message: {fit_message}')
             if self.fit_status is not None:
-                print(f'Fit status: {self.fit_status}')
-            print(f'Fit success: {str(self.fit_success)}')
-            print('-'*10)
+                log.info(f'Fit status: {self.fit_status}')
+            log.info(f'Fit success: {str(self.fit_success)}')
+            log.info('-'*10)
 
         slc = self._base_slice()
         ps = 0 if slc.start is None else slc.start
         pe = slc.stop
-        print(f'Base parameters:')
+        log.info(f'Base parameters:')
         for i in range(ps,pe):
             if not self.free[i]:
                 err = '*'
@@ -444,13 +445,13 @@ class AxisymmetricDisk(ThinDisk):
                 err = ''
             else:
                 err = f' +/- {self.par_err[i]:.1f}'
-            print(('{0:>'+f'{max_parn_len}'+'}'+ f': {self.par[i]:.1f}').format(parn[i]) + err)
+            log.info(('{0:>'+f'{max_parn_len}'+'}'+ f': {self.par[i]:.1f}').format(parn[i]) + err)
 
-        print('-'*10)
+        log.info('-'*10)
         slc = self._rc_slice()
         ps = 0 if slc.start is None else slc.start
         pe = slc.stop
-        print(f'Rotation curve parameters:')
+        log.info(f'Rotation curve parameters:')
         for i in range(ps,pe):
             if not self.free[i]:
                 err = '*'
@@ -458,25 +459,25 @@ class AxisymmetricDisk(ThinDisk):
                 err = ''
             else:
                 err = f' +/- {self.par_err[i]:.1f}'
-            print(('{0:>'+f'{max_parn_len}'+'}'+ f': {self.par[i]:.1f}').format(parn[i]) + err)
+            log.info(('{0:>'+f'{max_parn_len}'+'}'+ f': {self.par[i]:.1f}').format(parn[i]) + err)
 
         if self.dc is None:
-            print('-'*10)
+            log.info('-'*10)
             if self.scatter is not None:
-                print(f'Intrinsic Velocity Scatter: {self.scatter[0]:.1f}')
+                log.info(f'Intrinsic Velocity Scatter: {self.scatter[0]:.1f}')
             vchisqr = np.sum(vfom**2)
-            print(f'Velocity measurements: {len(vfom)}')
-            print(f'Velocity chi-square: {vchisqr}')
+            log.info(f'Velocity measurements: {len(vfom)}')
+            log.info(f'Velocity chi-square: {vchisqr}')
             if not component:
-                print(f'Reduced chi-square: {vchisqr/(len(vfom)-self.nfree)}')
-                print('-'*70)
+                log.info(f'Reduced chi-square: {vchisqr/(len(vfom)-self.nfree)}')
+                log.info('-'*70)
             return
 
-        print('-'*10)
+        log.info('-'*10)
         slc = self._dc_slice()
         ps = 0 if slc.start is None else slc.start
         pe = slc.stop
-        print(f'Dispersion profile parameters:')
+        log.info(f'Dispersion profile parameters:')
         for i in range(ps,pe):
             if not self.free[i]:
                 err = '*'
@@ -484,22 +485,22 @@ class AxisymmetricDisk(ThinDisk):
                 err = ''
             else:
                 err = f' +/- {self.par_err[i]:.1f}'
-            print(('{0:>'+f'{max_parn_len}'+'}'+ f': {self.par[i]:.1f}').format(parn[i]) + err)
-        print('-'*10)
+            log.info(('{0:>'+f'{max_parn_len}'+'}'+ f': {self.par[i]:.1f}').format(parn[i]) + err)
+        log.info('-'*10)
 
         if self.scatter is not None:
-            print(f'Intrinsic Velocity Scatter: {self.scatter[0]:.1f}')
+            log.info(f'Intrinsic Velocity Scatter: {self.scatter[0]:.1f}')
         vchisqr = np.sum(vfom**2)
-        print(f'Velocity measurements: {len(vfom)}')
-        print(f'Velocity chi-square: {vchisqr}')
+        log.info(f'Velocity measurements: {len(vfom)}')
+        log.info(f'Velocity chi-square: {vchisqr}')
         if self.scatter is not None:
-            print(f'Intrinsic Dispersion**2 Scatter: {self.scatter[1]:.1f}')
+            log.info(f'Intrinsic Dispersion**2 Scatter: {self.scatter[1]:.1f}')
         schisqr = np.sum(sfom**2)
-        print(f'Dispersion measurements: {len(sfom)}')
-        print(f'Dispersion chi-square: {schisqr}')
+        log.info(f'Dispersion measurements: {len(sfom)}')
+        log.info(f'Dispersion chi-square: {schisqr}')
         if not component:
-            print(f'Reduced chi-square: {(vchisqr + schisqr)/(len(vfom) + len(sfom) - self.nfree)}')
-            print('-'*70)
+            log.info(f'Reduced chi-square: {(vchisqr + schisqr)/(len(vfom) + len(sfom) - self.nfree)}')
+            log.info('-'*70)
 
 # TODO:
 #   - This is MaNGA-specific and needs to be abstracted
@@ -2640,18 +2641,18 @@ def axisym_iter_fit(galmeta, kin, rctype='HyperbolicTangent', dctype='Exponentia
 
     #---------------------------------------------------------------------------
     # Get the guess parameters and the model parameterizations
-    print('Setting up guess parameters and parameterization classes.')
+    log.info('Setting up guess parameters and parameterization classes.')
     p0, disk = axisym_init_model(galmeta, kin, rctype, dctype=dctype if fitdisp else None)
     # Report
-    print(f'Rotation curve parameterization class: {disk.rc.__class__.__name__}')
+    log.info(f'Rotation curve parameterization class: {disk.rc.__class__.__name__}')
     if disk.dc is not None:
-        print(f'Dispersion profile parameterization class: {disk.dc.__class__.__name__}')
-    print('Input guesses:')
-    print(f'               Position angle: {p0[2]:.1f}')
-    print(f'                  Inclination: {p0[3]:.1f}')
-    print(f'     Projected Rotation Speed: {p0[disk.nbp]:.1f}')
+        log.info(f'Dispersion profile parameterization class: {disk.dc.__class__.__name__}')
+    log.info('Input guesses:')
+    log.info(f'               Position angle: {p0[2]:.1f}')
+    log.info(f'                  Inclination: {p0[3]:.1f}')
+    log.info(f'     Projected Rotation Speed: {p0[disk.nbp]:.1f}')
     if disk.dc is not None:
-        print(f'  Central Velocity Dispersion: {p0[disk.nbp+disk.rc.np]:.1f}')
+        log.info(f'  Central Velocity Dispersion: {p0[disk.nbp+disk.rc.np]:.1f}')
     #---------------------------------------------------------------------------
 
     #---------------------------------------------------------------------------
@@ -2667,7 +2668,7 @@ def axisym_iter_fit(galmeta, kin, rctype='HyperbolicTangent', dctype='Exponentia
     dy = np.mean([abs(np.amin(kin.y)), abs(np.amax(kin.y))])
     lb, ub = disk.par_bounds(base_lb=np.array([-dx/3, -dy/3, -350., 1., -500.]),
                              base_ub=np.array([dx/3, dy/3, 350., 89., 500.]))
-    print(f'If free, center constrained within +/- {dx/3:.1f} in X and +/- {dy/3:.1f} in Y.')
+    log.info(f'If free, center constrained within +/- {dx/3:.1f} in X and +/- {dy/3:.1f} in Y.')
 
     # Handle boundary violations and warn the user
     disk_par_names = disk.par_names()
@@ -2677,18 +2678,18 @@ def axisym_iter_fit(galmeta, kin, rctype='HyperbolicTangent', dctype='Exponentia
         for i in np.where(indx)[0]:
             _p0 = p0[i]
             p0[i] = lb[i]*1.01
-            print(f'{disk_par_names[i]:>20} {_p0:20.3f} {p0[i]:20.3f}')
+            log.info(f'{disk_par_names[i]:>20} {_p0:20.3f} {p0[i]:20.3f}')
     indx = np.greater(p0, ub)
     if np.any(indx):
         warnings.warn('Adjusting parameters above the upper bound!')
         for i in np.where(indx)[0]:
             _p0 = p0[i]
             p0[i] = ub[i]/1.01
-            print(f'{disk_par_names[i]:>20} {_p0:20.3f} {p0[i]:20.3f}')
+            log.info(f'{disk_par_names[i]:>20} {_p0:20.3f} {p0[i]:20.3f}')
 
     #---------------------------------------------------------------------------
     # Setup the masks
-    print('Initializing data masking')
+    log.info('Initializing data masking')
     vel_mask, sig_mask = kin.init_fitting_masks(bitmask=disk.mbm,
                                                 max_vel_err=max_vel_err, max_sig_err=max_sig_err,
                                                 min_vel_snr=min_vel_snr, min_sig_snr=min_sig_snr,
@@ -2712,7 +2713,7 @@ def axisym_iter_fit(galmeta, kin, rctype='HyperbolicTangent', dctype='Exponentia
     # Fit iteration 1: Fit all data but fix the inclination and center
     #                x0    y0    pa     inc   vsys    rc+dc parameters
     fix = np.append([True, True, False, True, False], np.zeros(p0.size-5, dtype=bool))
-    print('Running fit iteration 1')
+    log.info('Running fit iteration 1')
     # TODO: sb_wgt is always true throughout. Make this a command-line
     # parameter?
     disk.lsq_fit(kin, sb_wgt=True, p0=p0, fix=fix, lb=lb, ub=ub, ignore_covar=True,
@@ -2727,22 +2728,22 @@ def axisym_iter_fit(galmeta, kin, rctype='HyperbolicTangent', dctype='Exponentia
     #   - Reject very large outliers. This is aimed at finding data that is
     #     so descrepant from the model that it's reasonable to expect the
     #     measurements are bogus.
-    print('Running rejection iterations')
+    log.info('Running rejection iterations')
     vel_rej, vel_sig, sig_rej, sig_sig \
             = disk.reject(vel_sigma_rej=_vel_sigma_rej[0], show_vel=debug,
                           sig_sigma_rej=_sig_sigma_rej[0], show_sig=debug, verbose=verbose > 1)
     if np.any(vel_rej):
-        print(f'{np.sum(vel_rej)} velocity measurements rejected as unreliable.')
+        log.info(f'{np.sum(vel_rej)} velocity measurements rejected as unreliable.')
         vel_mask[vel_rej] = disk.mbm.turn_on(vel_mask[vel_rej], 'REJ_UNR')
     if fitdisp and sig_rej is not None and np.any(sig_rej):
-        print(f'{np.sum(sig_rej)} dispersion measurements rejected as unreliable.')
+        log.info(f'{np.sum(sig_rej)} dispersion measurements rejected as unreliable.')
         sig_mask[sig_rej] = disk.mbm.turn_on(sig_mask[sig_rej], 'REJ_UNR')
     #   - Incorporate the rejection into the Kinematics object
     kin.reject(vel_rej=vel_rej, sig_rej=sig_rej)
     #   - Refit, again with the inclination and center fixed. However, do not
     #     use the parameters from the previous fit as the starting point, and
     #     ignore the estimated intrinsic scatter.
-    print('Running fit iteration 2')
+    log.info('Running fit iteration 2')
     disk.lsq_fit(kin, sb_wgt=True, p0=p0, fix=fix, lb=lb, ub=ub, ignore_covar=True,
                  assume_posdef_covar=assume_posdef_covar, analytic_jac=analytic_jac,
                  verbose=verbose)
@@ -2753,22 +2754,22 @@ def axisym_iter_fit(galmeta, kin, rctype='HyperbolicTangent', dctype='Exponentia
     #---------------------------------------------------------------------------
     # Fit iteration 3: 
     #   - Perform a more restricted rejection
-    print('Running rejection iterations')
+    log.info('Running rejection iterations')
     vel_rej, vel_sig, sig_rej, sig_sig \
             = disk.reject(vel_sigma_rej=_vel_sigma_rej[1], show_vel=debug,
                           sig_sigma_rej=_sig_sigma_rej[1], show_sig=debug, verbose=verbose > 1)
     if np.any(vel_rej):
-        print(f'{np.sum(vel_rej)} velocity measurements rejected due to large residuals.')
+        log.info(f'{np.sum(vel_rej)} velocity measurements rejected due to large residuals.')
         vel_mask[vel_rej] = disk.mbm.turn_on(vel_mask[vel_rej], 'REJ_RESID')
     if fitdisp and sig_rej is not None and np.any(sig_rej):
-        print(f'{np.sum(sig_rej)} dispersion measurements rejected due to large residuals.')
+        log.info(f'{np.sum(sig_rej)} dispersion measurements rejected due to large residuals.')
         sig_mask[sig_rej] = disk.mbm.turn_on(sig_mask[sig_rej], 'REJ_RESID')
     #   - Incorporate the rejection into the Kinematics object
     kin.reject(vel_rej=vel_rej, sig_rej=sig_rej)
     #   - Refit again with the inclination and center fixed, but use the
     #     previous fit as the starting point and include the estimated
     #     intrinsic scatter.
-    print('Running fit iteration 3')
+    log.info('Running fit iteration 3')
     scatter = np.array([vel_sig, sig_sig]) if fit_scatter else None
     disk.lsq_fit(kin, sb_wgt=True, p0=disk.par, fix=fix, lb=lb, ub=ub, ignore_covar=True,
                  assume_posdef_covar=assume_posdef_covar, scatter=scatter,
@@ -2782,22 +2783,22 @@ def axisym_iter_fit(galmeta, kin, rctype='HyperbolicTangent', dctype='Exponentia
     #   - Recover data from the restricted rejection
     disk.mbm.reset_to_base_flags(kin, vel_mask, sig_mask)
     #   - Reject again based on the new fit parameters
-    print('Running rejection iterations')
+    log.info('Running rejection iterations')
     vel_rej, vel_sig, sig_rej, sig_sig \
             = disk.reject(vel_sigma_rej=_vel_sigma_rej[1], show_vel=debug,
                           sig_sigma_rej=_sig_sigma_rej[1], show_sig=debug, verbose=verbose > 1)
     if np.any(vel_rej):
-        print(f'{np.sum(vel_rej)} velocity measurements rejected due to large residuals.')
+        log.info(f'{np.sum(vel_rej)} velocity measurements rejected due to large residuals.')
         vel_mask[vel_rej] = disk.mbm.turn_on(vel_mask[vel_rej], 'REJ_RESID')
     if fitdisp and sig_rej is not None and np.any(sig_rej):
-        print(f'{np.sum(sig_rej)} dispersion measurements rejected due to large residuals.')
+        log.info(f'{np.sum(sig_rej)} dispersion measurements rejected due to large residuals.')
         sig_mask[sig_rej] = disk.mbm.turn_on(sig_mask[sig_rej], 'REJ_RESID')
     #   - Incorporate the rejection into the Kinematics object
     kin.reject(vel_rej=vel_rej, sig_rej=sig_rej)
     #   - Refit again with the inclination and center fixed, but use the
     #     previous fit as the starting point and include the estimated
     #     intrinsic scatter.
-    print('Running fit iteration 4')
+    log.info('Running fit iteration 4')
     scatter = np.array([vel_sig, sig_sig]) if fit_scatter else None
     disk.lsq_fit(kin, sb_wgt=True, p0=disk.par, fix=fix, lb=lb, ub=ub, ignore_covar=True,
                  assume_posdef_covar=assume_posdef_covar, scatter=scatter,
@@ -2811,15 +2812,15 @@ def axisym_iter_fit(galmeta, kin, rctype='HyperbolicTangent', dctype='Exponentia
     #   - Recover data from the restricted rejection
     disk.mbm.reset_to_base_flags(kin, vel_mask, sig_mask)
     #   - Reject again based on the new fit parameters
-    print('Running rejection iterations')
+    log.info('Running rejection iterations')
     vel_rej, vel_sig, sig_rej, sig_sig \
             = disk.reject(vel_sigma_rej=_vel_sigma_rej[2], show_vel=debug,
                           sig_sigma_rej=_sig_sigma_rej[2], show_sig=debug, verbose=verbose > 1)
     if np.any(vel_rej):
-        print(f'{np.sum(vel_rej)} velocity measurements rejected due to large residuals.')
+        log.info(f'{np.sum(vel_rej)} velocity measurements rejected due to large residuals.')
         vel_mask[vel_rej] = disk.mbm.turn_on(vel_mask[vel_rej], 'REJ_RESID')
     if fitdisp and sig_rej is not None and np.any(sig_rej):
-        print(f'{np.sum(sig_rej)} dispersion measurements rejected due to large residuals.')
+        log.info(f'{np.sum(sig_rej)} dispersion measurements rejected due to large residuals.')
         sig_mask[sig_rej] = disk.mbm.turn_on(sig_mask[sig_rej], 'REJ_RESID')
     #   - Incorporate the rejection into the Kinematics object
     kin.reject(vel_rej=vel_rej, sig_rej=sig_rej)
@@ -2833,7 +2834,7 @@ def axisym_iter_fit(galmeta, kin, rctype='HyperbolicTangent', dctype='Exponentia
     if fix_inc:
         base_fix[3] = True
     fix = np.append(base_fix, np.zeros(p0.size-5, dtype=bool))
-    print('Running fit iteration 5')
+    log.info('Running fit iteration 5')
     scatter = np.array([vel_sig, sig_sig]) if fit_scatter else None
     disk.lsq_fit(kin, sb_wgt=True, p0=disk.par, fix=fix, lb=lb, ub=ub, ignore_covar=ignore_covar,
                  assume_posdef_covar=assume_posdef_covar, scatter=scatter,
@@ -2847,20 +2848,20 @@ def axisym_iter_fit(galmeta, kin, rctype='HyperbolicTangent', dctype='Exponentia
     #   - Recover data from the restricted rejection
     disk.mbm.reset_to_base_flags(kin, vel_mask, sig_mask)
     #   - Reject again based on the new fit parameters.
-    print('Running rejection iterations')
+    log.info('Running rejection iterations')
     vel_rej, vel_sig, sig_rej, sig_sig \
             = disk.reject(vel_sigma_rej=_vel_sigma_rej[3], show_vel=debug,
                           sig_sigma_rej=_sig_sigma_rej[3], show_sig=debug, verbose=verbose > 1)
     if np.any(vel_rej):
-        print(f'{np.sum(vel_rej)} velocity measurements rejected due to large residuals.')
+        log.info(f'{np.sum(vel_rej)} velocity measurements rejected due to large residuals.')
         vel_mask[vel_rej] = disk.mbm.turn_on(vel_mask[vel_rej], 'REJ_RESID')
     if fitdisp and sig_rej is not None and np.any(sig_rej):
-        print(f'{np.sum(sig_rej)} dispersion measurements rejected due to large residuals.')
+        log.info(f'{np.sum(sig_rej)} dispersion measurements rejected due to large residuals.')
         sig_mask[sig_rej] = disk.mbm.turn_on(sig_mask[sig_rej], 'REJ_RESID')
     #   - Incorporate the rejection into the Kinematics object
     kin.reject(vel_rej=vel_rej, sig_rej=sig_rej)
     #   - Redo previous fit
-    print('Running fit iteration 6')
+    log.info('Running fit iteration 6')
     scatter = np.array([vel_sig, sig_sig]) if fit_scatter else None
     disk.lsq_fit(kin, sb_wgt=True, p0=disk.par, fix=fix, lb=lb, ub=ub, ignore_covar=ignore_covar,
                  assume_posdef_covar=assume_posdef_covar, scatter=scatter, 
@@ -2887,7 +2888,7 @@ def axisym_iter_fit(galmeta, kin, rctype='HyperbolicTangent', dctype='Exponentia
     disk.par[3] = galmeta.guess_inclination(lb=1., ub=89.)
     warnings.warn(f'Best-fitting inclination is below {low_inc:.1f} degrees.  Running a final '
                   f'fit fixing the inclination to {disk.par[3]:.1f}')
-    print('Running fit iteration 7')
+    log.info('Running fit iteration 7')
     disk.lsq_fit(kin, sb_wgt=True, p0=disk.par, fix=fix, lb=lb, ub=ub, ignore_covar=ignore_covar,
                  assume_posdef_covar=assume_posdef_covar, scatter=scatter,
                  analytic_jac=analytic_jac, verbose=verbose)

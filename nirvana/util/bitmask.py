@@ -24,6 +24,8 @@ import numpy as np
 
 from pydl.pydlutils.yanny import yanny
 
+from nirvana import log
+
 
 class BitMask:
     """
@@ -297,13 +299,13 @@ class BitMask:
         for k,v in sorted(self.bits.items(), key=lambda x:(x[1],x[0])):
             if k == 'NULL':
                 continue
-            print('         Bit: {0} = {1}'.format(k,v))
+            log.info('         Bit: {0} = {1}'.format(k,v))
             if self.descr is not None:
                 if tcols is not None:
-                    print(textwrap.fill(' Description: {0}'.format(self.descr[v]), tcols))
+                    log.info(textwrap.fill(' Description: {0}'.format(self.descr[v]), tcols))
                 else:
-                    print(' Description: {0}'.format(self.descr[v]))
-            print(' ')
+                    log.info(' Description: {0}'.format(self.descr[v]))
+            log.info(' ')
 
     def minimum_dtype(self, asuint=False):
         """

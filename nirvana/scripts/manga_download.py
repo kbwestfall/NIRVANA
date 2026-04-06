@@ -13,7 +13,7 @@ class MaNGADownload(scriptbase.ScriptBase):
     @classmethod
     def get_parser(cls, width=None):
         parser = super().get_parser(
-            description='Download MaNGA data', width=width, default_log_file=True
+            description='Download MaNGA data', width=width
         )
 
         parser.add_argument(
@@ -65,6 +65,10 @@ class MaNGADownload(scriptbase.ScriptBase):
 
     @classmethod
     def main(cls, args):
+
+        # Initialize the log
+        cls.init_log(args)
+
         manga.download_plateifu(
             args.plate, args.ifu, daptype=args.daptype, dr=args.dr, oroot=args.root,
             redux_path=args.redux, analysis_path=args.analysis, overwrite=args.overwrite

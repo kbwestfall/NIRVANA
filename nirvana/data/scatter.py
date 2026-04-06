@@ -13,6 +13,7 @@ from matplotlib import pyplot, patches
 
 from astropy.stats import sigma_clip
 
+from nirvana import log
 from . import util
 from ..util import plot
 
@@ -85,7 +86,7 @@ class IntrinsicScatter:
         """
         merit = abs(np.sum(self._rsq / (self._var + x[0]**2)) - self._dof)
         if self.debug:
-            print('Par={0:7.3f}, Merit={1:9.3e}'.format(x[0], merit))
+            log.info('Par={0:7.3f}, Merit={1:9.3e}'.format(x[0], merit))
         return merit
         
     def _adj_covar(self, x):
@@ -103,7 +104,7 @@ class IntrinsicScatter:
         """
         merit = abs(np.dot(self._res, np.dot(util.cinv(self._adj_covar(x)), self._res)) - self._dof)
         if self.debug:
-            print('Par={0:7.3f}, Merit={1:9.3e}'.format(x[0], merit))
+            log.info('Par={0:7.3f}, Merit={1:9.3e}'.format(x[0], merit))
         return merit
         
     def _fit_init(self, sig0=None, fixed_rho=False):
@@ -285,7 +286,7 @@ class IntrinsicScatter:
         sig, rej, gpm = self.fit(sig0=sig0, sigma_rej=sigma_rej, rejiter=rejiter,
                                  fixed_rho=fixed_rho, verbose=verbose)
         if self.debug:
-            print('sig={0:5.2f}, Nrej={1:>3}, Nrej_diff=   0'.format(sig, np.sum(rej)))
+            log.info('sig={0:5.2f}, Nrej={1:>3}, Nrej_diff=   0'.format(sig, np.sum(rej)))
         i = 1
         nrej = np.sum(rej)
         _rej = rej.copy()
@@ -297,7 +298,7 @@ class IntrinsicScatter:
                                      fixed_rho=fixed_rho, verbose=verbose)
             _rej = rej != _rej
             if self.debug:
-                print('sig={0:5.2f}, Nrej={1:>3}, Nrej_diff={2:>3}'.format(
+                log.info('sig={0:5.2f}, Nrej={1:>3}, Nrej_diff={2:>3}'.format(
                             sig, np.sum(rej), np.sum(_rej)))
             i += 1
         return sig, rej, gpm

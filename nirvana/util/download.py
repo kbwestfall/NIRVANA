@@ -3,6 +3,7 @@ import warnings
 import requests
 import tqdm
 
+from nirvana import log
 
 def download_file(url, outfile, overwrite=True, auth=None):
     """
@@ -39,8 +40,8 @@ def download_file(url, outfile, overwrite=True, auth=None):
             warnings.warn(f'{outfile} exists. To overwrite, set overwrite=True.')
             return
 
-    print('Downloading: {0}'.format(url))
-    print('To: {0}'.format(outfile))
+    log.info('Downloading: {0}'.format(url))
+    log.info('To: {0}'.format(outfile))
     # Streaming, so we can iterate over the response.
     r = requests.get(url, stream=True, auth=auth)
     # Ensure that the url exists
