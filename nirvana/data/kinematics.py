@@ -13,6 +13,8 @@ from scipy import sparse
 from matplotlib import pyplot, rc, patches, ticker
 import warnings
 
+from nirvana import log
+
 from .bin2d import Bin2D
 from .util import gaussian_deviates, growth_lim, impose_positive_definite
 from .util import select_kinematic_axis, bin_stats, find_largest_coherent_region
@@ -431,7 +433,7 @@ class Kinematics:
             return None
 
         if not quiet:
-            print('Ingesting covariance matrix ... ')
+            log.info('Ingesting covariance matrix ... ')
 
         nspax = np.prod(self.spatial_shape)
         if covar.shape != (nspax,nspax):
@@ -1068,27 +1070,27 @@ class Kinematics:
         if verbose:
             any_removed = np.any(vel_largeerr) or np.any(vel_lowsnr) or np.any(vel_disjoint)
             if any_removed:
-                print('Velocity measurements removed:')
+                log.info('Velocity measurements removed:')
             else:
-                print('Velocity measurements removed: NONE')
+                log.info('Velocity measurements removed: NONE')
             if np.any(vel_largeerr):
-                print(f'    Large errors: {np.sum(vel_largeerr)}')
+                log.info(f'    Large errors: {np.sum(vel_largeerr)}')
             if np.any(vel_lowsnr):
-                print(f'         Low S/N: {np.sum(vel_lowsnr)}')
+                log.info(f'         Low S/N: {np.sum(vel_lowsnr)}')
             if np.any(vel_disjoint):
-                print(f'        Disjoint: {np.sum(vel_disjoint)}')
+                log.info(f'        Disjoint: {np.sum(vel_disjoint)}')
 
             any_removed = np.any(sig_largeerr) or np.any(sig_lowsnr) or np.any(sig_disjoint)
             if any_removed:
-                print('Dispersion measurements removed:')
+                log.info('Dispersion measurements removed:')
             else:
-                print('Dispersion measurements removed: NONE')
+                log.info('Dispersion measurements removed: NONE')
             if np.any(sig_largeerr):
-                print(f'    Large errors: {np.sum(sig_largeerr)}')
+                log.info(f'    Large errors: {np.sum(sig_largeerr)}')
             if np.any(sig_lowsnr):
-                print(f'         Low S/N: {np.sum(sig_lowsnr)}')
+                log.info(f'         Low S/N: {np.sum(sig_lowsnr)}')
             if np.any(sig_disjoint):
-                print(f'        Disjoint: {np.sum(sig_disjoint)}')
+                log.info(f'        Disjoint: {np.sum(sig_disjoint)}')
 
         # Save the rejections if requested
         if save:

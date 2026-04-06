@@ -13,6 +13,7 @@ from matplotlib import pyplot
 
 from astropy.io import fits
 
+from nirvana import log
 from ..data import manga
 from ..data.bin2d import Bin2D, VoronoiBinning
 from ..models import axisym
@@ -287,7 +288,7 @@ class MaNGAAxisymRecover(scriptbase.ScriptBase):
             binned_sb = binner.remap(binner.bin(smeared_sb), masked=False, fill_value=0.)
 
             if args.covar_sim:
-                print('Generating Flux Covariance')
+                log.info('Generating Flux Covariance')
                 _, smeared_sb_covar = manga.manga_map_covar(
                     1./smeared_sb_err**2, positive_definite=False, fill=True
                 )
@@ -316,10 +317,10 @@ class MaNGAAxisymRecover(scriptbase.ScriptBase):
         sig_ivar = np.ma.MaskedArray(np.ma.divide(binned_snr, sig)**2, mask=ifu_mask)
 
         if args.covar_sim:
-            print('Generating Velocity Covariance')
+            log.info('Generating Velocity Covariance')
             _, vel_covar = manga.manga_map_covar(vel_ivar, positive_definite=False, fill=True)
             if sig is not None:
-                print('Generating Sigma Covariance')
+                log.info('Generating Sigma Covariance')
                 _, sig_covar = manga.manga_map_covar(sig_ivar, positive_definite=False, fill=True)
         else:
             vel_covar = None
@@ -369,7 +370,7 @@ class MaNGAAxisymRecover(scriptbase.ScriptBase):
         noisy_mock._set_beam(beam_fit, None)
         disk_fom = disk._get_fom()
         for i in range(args.nsim):
-            print(f'Sim {i+1}/{args.nsim}', end='\r')
+            log.info(f'Sim {i+1}/{args.nsim}', end='\r')
             noisy_mock.vel[vgpm] = _vel[vgpm] + dv[i]
             if disk.dc is not None:
                 _sig2[sgpm] += ds2[i]
@@ -400,7 +401,7 @@ class MaNGAAxisymRecover(scriptbase.ScriptBase):
                 metadata[f'G_{n}'.upper()][i] = gp
                 metadata[f'F_{n}'.upper()][i] = p
                 metadata[f'E_{n}'.upper()][i] = pe
-        print(f'Sim {args.nsim}/{args.nsim}')
+        log.info(f'Sim {args.nsim}/{args.nsim}')
 
         # Build the output fits extension (base) headers
         #   - Primary header

@@ -12,6 +12,7 @@ from IPython import embed
 import numpy as np
 from scipy import optimize
 
+from nirvana import log
 from .beam import ConvolveFFTW
 from .util import cov_err
 from ..data.kinematics import Kinematics
@@ -598,12 +599,12 @@ class ThinDisk:
                             else self.kin.sig_phys2_covar[np.ix_(self.sig_gpm,self.sig_gpm)]
             if not assume_posdef_covar:
                 # Force the matrices to be positive definite
-                print('Forcing vel covar to be pos-def')
+                log.info('Forcing vel covar to be pos-def')
                 vel_pd_covar = impose_positive_definite(vel_pd_covar)
                 if self.dc is None:
                     sig_pd_covar = None 
                 else:
-                    print('Forcing sig covar to be pos-def')
+                    log.info('Forcing sig covar to be pos-def')
                     sig_pd_covar = impose_positive_definite(sig_pd_covar)
 
             if self.scatter is not None:

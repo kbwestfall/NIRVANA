@@ -11,6 +11,7 @@ from IPython import embed
 import numpy as np
 from astropy.io import fits
 
+from nirvana import log
 from nirvana.data.manga import manga_paths, manga_file_names, MaNGAGlobalPar
 from nirvana.models.axisym import AxisymmetricDisk, _fit_meta_dtype
 from nirvana.models.oned import Func1D
@@ -250,10 +251,10 @@ class MaNGAAxisymCollate(scriptbase.ScriptBase):
         # Get the maximum number of radii for the binned data
         maxnr = 0
         max_adnr = 0
-        print('Finding maximum number of radial bins')
+        log.info('Finding maximum number of radial bins')
         nf = len(files)
         for i, f in enumerate(files):
-            print(f'{i+1}/{nf}', end='\r')
+            log.info(f'{i+1}/{nf}', end='\r')
             with fits.open(f) as hdu:
                 if args.asymdrift:
                     try:
@@ -281,7 +282,7 @@ class MaNGAAxisymCollate(scriptbase.ScriptBase):
                 or (not args.asymdrift and maxnr == args.max_nr)
             ):
                 break
-        print(f'{nf}/{nf}')
+        log.info(f'{nf}/{nf}')
 
         # Get the data type for the output tables
         _gas_dtype = _fit_meta_dtype(gas_disk.par_names(short=True), maxnr, gas_disk.mbm)
@@ -319,7 +320,7 @@ class MaNGAAxisymCollate(scriptbase.ScriptBase):
         if args.asymdrift:
             ad_metadata = fileio.init_record_array(indx.size, _ad_dtype)
         for i, j in enumerate(indx):
-            print(f'Collating {i+1}/{indx.size}', end='\r')
+            log.info(f'Collating {i+1}/{indx.size}', end='\r')
 
             galmeta = MaNGAGlobalPar(
                 dapall['PLATE'][j], dapall['IFUDESIGN'][j], drpall=drpall, dapall=dapall
@@ -469,7 +470,7 @@ class MaNGAAxisymCollate(scriptbase.ScriptBase):
                     str_disk.gbm.minimum_dtype()(0), 'NOMODEL'
                 )
 
-        print(f'Collating {indx.size}/{indx.size}')
+        log.info(f'Collating {indx.size}/{indx.size}')
 
         # TODO: Add more to the headers?
         hdr = fits.Header()

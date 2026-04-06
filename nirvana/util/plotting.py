@@ -15,6 +15,7 @@ from functools import partial
 
 from glob import glob
 
+from nirvana import log
 from ..models.higher_order import bisym_model
 from ..models.geometry import projected_polar
 from .fits_prep import fileprep
@@ -221,7 +222,7 @@ def summaryplot(f, plate=None, ifu=None, smearing=True, stellar=False, maxr=None
         fname = f[f.rfind('/')+1:-5]
         plt.savefig(f'{path}plots/{fname}.pdf', format='pdf')
         plt.close()
-    print(resdict)
+    log.info(resdict)
 
     return fig
 
@@ -538,8 +539,8 @@ def safeplot(f, func='sum', **kwargs):
         else:
             raise UserInputError('Plotting function must be "sum" or "sep"')
     except Exception:
-        print(f, 'failed')
-        print(traceback.format_exc())
+        log.info(f, 'failed')
+        log.info(traceback.format_exc())
 
 def plotdir(directory='/data/manga/digiorgio/nirvana/', fname='*-*_*.nirv', cores=20, func='sum', **kwargs):
     '''
@@ -574,7 +575,7 @@ def plotdir(directory='/data/manga/digiorgio/nirvana/', fname='*-*_*.nirv', core
     plt.ioff() #turn off plot displaying (don't know if this works in a script)
     fs = glob(directory + fname)
     if len(fs) == 0: raise FileNotFoundError('No files found')
-    else: print(len(fs), 'files found')
+    else: log.info(len(fs), 'files found')
     with mp.Pool(cores) as p:
         p.map(partial(safeplot, func=func), fs)
 

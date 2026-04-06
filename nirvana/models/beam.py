@@ -12,6 +12,8 @@ try:
 except:
     pyfftw = None
 
+from nirvana import log
+
 def gauss2d_kernel(n, sigma):
     """
     Return a circular 2D Gaussian.
@@ -78,8 +80,8 @@ def convolve_fft(data, kernel, kernel_fft=False, return_fft=False):
     if data.shape != kernel.shape:
         raise ValueError('Data and kernel must have the same shape.')
     if not np.all(np.isfinite(data)) or not np.all(np.isfinite(kernel)):
-        print('**********************************')
-        print(f'nans in data: {(~np.isfinite(data)).sum()}, nans in kernel: {(~np.isfinite(kernel)).sum()}')
+        log.info('**********************************')
+        log.info(f'nans in data: {(~np.isfinite(data)).sum()}, nans in kernel: {(~np.isfinite(kernel)).sum()}')
         raise ValueError('Data and kernel must both have valid values.')
 
     datafft = np.fft.fftn(data)
@@ -349,11 +351,13 @@ def smear(v, beam, beam_fft=False, sb=None, sig=None, cnvfftw=None, verbose=Fals
                                     if cnvfftw is None else cnvfftw.fft(beam, shift=True))
 
     # Get the first moment of the beam-smeared intensity distribution
-    if verbose: print('Convolving surface brightness...')
+    if verbose:
+        log.info('Convolving surface brightness...')
     mom0 = _cnv(np.ones(v.shape, dtype=float) if sb is None else sb, bfft, kernel_fft=True)
 
     # First moment
-    if verbose: print('Convolving velocity field...',sb,v)
+    if verbose:
+        log.info('Convolving velocity field...',sb,v)
     mom1 = _cnv(v if sb is None else sb*v, bfft, kernel_fft=True)
     if mom0 is not None:
         mom1 /= (mom0 + (mom0 == 0.0))
@@ -364,7 +368,8 @@ def smear(v, beam, beam_fft=False, sb=None, sig=None, cnvfftw=None, verbose=Fals
 
     # Second moment
     _sig = np.square(v) + np.square(sig)
-    if verbose: print('Convolving velocity dispersion...')
+    if verbose:
+        log.info('Convolving velocity dispersion...')
     mom2 = _cnv(_sig if sb is None else sb*_sig, bfft, kernel_fft=True)
     if mom0 is not None:
         mom2 /= (mom0 + (mom0 == 0.0))

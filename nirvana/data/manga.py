@@ -26,6 +26,7 @@ from astropy.io import fits
 from astropy.wcs import WCS
 from astropy import constants
 
+from nirvana import log
 from .util import get_map_bin_transformations, impose_positive_definite, gaussian_fill, fill_matrix
 from .util import growth_lim
 from .kinematics import Kinematics
@@ -108,7 +109,7 @@ def read_manga_psf(cube_file, psf_ext, fwhm=False, quiet=False):
     # Read the PSF
     # TODO: Switch from print to a logger
     if not quiet:
-        print('Reading {0} ... '.format(cube_file))
+        log.info('Reading {0} ... '.format(cube_file))
     with fits.open(cube_file) as hdu:
         if psf_ext not in hdu:
             raise KeyError('{0} does not include an extension {1}.'.format(
@@ -116,7 +117,7 @@ def read_manga_psf(cube_file, psf_ext, fwhm=False, quiet=False):
         psf = hdu[psf_ext].data
         if fwhm: fwhm = hdu[0].header['GFWHM']
     if not quiet:
-        print('Done')
+        log.info('Done')
     if fwhm: return psf, fwhm
     return psf
 
@@ -127,7 +128,7 @@ def manga_versions():
     DAP versions.  To list the available versions::
 
         from nirvana.data.manga import manga_versions
-        print(manga_versions().keys())
+        log.info(manga_versions().keys())
 
     """
     return {'DR15': {'DRP': 'v2_4_3', 'DAP': '2.2.1', 'collab': False},
@@ -1056,7 +1057,7 @@ class MaNGAGasKinematics(MaNGAKinematics):
         # Read the kinematic maps
         # TODO: Switch from print to a logger
         if not quiet:
-            print('Reading {0} ... '.format(maps_file))
+            log.info('Reading {0} ... '.format(maps_file))
         with fits.open(maps_file) as hdu:
             eml = channel_dictionary(hdu, 'EMLINE_GVEL')
             if line not in eml:
@@ -1111,7 +1112,7 @@ class MaNGAGasKinematics(MaNGAKinematics):
             wcs = WCS(header=hdu['SPX_MFLUX'].header)
 
         if not quiet:
-            print('Done')
+            log.info('Done')
 
         # Mask flux values outside the provided bounds.  This is to deal with
         # *very* aberrant flux measurements that were not masked by the MaNGA
@@ -1146,7 +1147,7 @@ class MaNGAGasKinematics(MaNGAKinematics):
 
         if covar:
             if not quiet:
-                print('Building covariance matrices ... ')
+                log.info('Building covariance matrices ... ')
 
             # NOTE: None of the covariance matrices are forced to be
             # positive-definite here.  This is left to the base Kinematics
@@ -1158,7 +1159,7 @@ class MaNGAGasKinematics(MaNGAKinematics):
             sig_gpm, sig_covar = manga_map_covar(np.ma.MaskedArray(sig_ivar, mask=sig_mask),
                                                  binid=binid, positive_definite=False, fill=True)
             if not quiet:
-                print('Done')
+                log.info('Done')
         else:
             sb_covar, vel_covar, sig_covar = None, None, None
 
@@ -1278,7 +1279,7 @@ class MaNGAStellarKinematics(MaNGAKinematics):
 
         # Read the kinematic maps
         if not quiet:
-            print('Reading {0} ... '.format(maps_file))
+            log.info('Reading {0} ... '.format(maps_file))
         with fits.open(maps_file) as hdu:
             x = hdu[coo_ext].data[0]
             y = hdu[coo_ext].data[1]
@@ -1326,7 +1327,7 @@ class MaNGAStellarKinematics(MaNGAKinematics):
             wcs = WCS(header=hdu['SPX_MFLUX'].header)
 
         if not quiet:
-            print('Done')
+            log.info('Done')
 
         if sb_fill is not None:
             if not unbinned_sb:
@@ -1356,7 +1357,7 @@ class MaNGAStellarKinematics(MaNGAKinematics):
 
         if covar:
             if not quiet:
-                print('Building covariance matrices ... ')
+                log.info('Building covariance matrices ... ')
             sb_gpm, sb_covar = manga_map_covar(np.ma.MaskedArray(sb_ivar, mask=sb_mask),
                                                binid=binid, positive_definite=False, fill=True)
             vel_gpm, vel_covar = manga_map_covar(np.ma.MaskedArray(vel_ivar, mask=vel_mask),
@@ -1364,7 +1365,7 @@ class MaNGAStellarKinematics(MaNGAKinematics):
             sig_gpm, sig_covar = manga_map_covar(np.ma.MaskedArray(sig_ivar, mask=sig_mask),
                                                  binid=binid, positive_definite=False, fill=True)
             if not quiet:
-                print('Done')
+                log.info('Done')
         else:
             sb_covar, vel_covar, sig_covar = None, None, None
 
@@ -1438,10 +1439,10 @@ class MaNGAGlobalPar(GlobalPar):
                 if drpall_path is None:
                     raise ValueError('Could not define path to the DRPall file.')
                 drpall_file = os.path.join(drpall_path, drpall_file)
-            print('Reading DRPall file...')
+            log.info('Reading DRPall file...')
             with fits.open(drpall_file) as hdu:
                 drpall = hdu['MANGA'].data
-            print('    DONE')
+            log.info('    DONE')
 
         # Read the DAPall database, if not provided
         if dapall is None:
@@ -1455,12 +1456,12 @@ class MaNGAGlobalPar(GlobalPar):
                     raise ValueError('Could not define path to the DAPall file.')
                 dapall_file = os.path.join(dapall_path, dapall_file)
             # For the redshift used by the DAP, we actually need the DAPall file
-            print('Reading DAPall file ...')
+            log.info('Reading DAPall file ...')
             with fits.open(dapall_file) as hdu:
                 # The redshift used by the DAP is independent of the DAPTYPE, so
                 # just use the first extension
                 dapall = hdu[1].data
-            print('    DONE')
+            log.info('    DONE')
 
         # Find the index in the DAPall file
         plateifu = f'{plate}-{ifu}'

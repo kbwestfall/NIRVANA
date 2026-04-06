@@ -6,12 +6,14 @@ Implements base classes for use with ``PypeIt`` scripts.
 
 """
 import argparse
-#import datetime
+import datetime
 from functools import reduce
 from pathlib import Path
 import textwrap
 
 from IPython import embed
+
+from nirvana import log
 
 
 class SmartFormatter(argparse.HelpFormatter):
@@ -211,44 +213,42 @@ class ScriptBase:
                  'messages, level 1 adds informational messages, and level 2 adds debugging '
                  'messages and the calling sequence.'
         )
-#        parser.add_argument(
-#            '--log_file', type=str, default='default' if default_log_file else None,
-#            help='Name for the log file.  If set to "default", a default name is used.  If None, '
-#                 'a log file is not produced.'
-#        )
-#        parser.add_argument(
-#            '--log_level', type=int, default=None,
-#            help='Verbosity level for the log file.  If a log file is produce and this is None, '
-#                 'the file log will match the console stream log.'
-#        )
+        parser.add_argument(
+            '--log_file', type=str, default='default' if default_log_file else None,
+            help='Name for the log file.  If set to "default", a default name is used.  If None, '
+                 'a log file is not produced.'
+        )
+        parser.add_argument(
+            '--log_level', type=int, default=None,
+            help='Verbosity level for the log file.  If a log file is produce and this is None, '
+                 'the file log will match the console stream log.'
+        )
         return parser
 
-#    @classmethod
-#    def init_log(cls, args):
-#        """
-#        Initialize the logger provided the command-line arguments.
-#        """
-#        level = log.convert_verbosity_to_logging_level(args.verbosity)
-#        log_file_level = None if args.log_level is None else \
-#            log.convert_verbosity_to_logging_level(args.log_level)
-#        if args.log_file == 'default':
-#            _log_file = cls.default_log_file()
-#        elif args.log_file in ['None', None]:
-#            _log_file = None
-#        else:
-#            _log_file = args.log_file
-#        log.init(level=level,
-#                 log_file=_log_file,
-#                 log_file_level=log_file_level)
+    @classmethod
+    def init_log(cls, args):
+        """
+        Initialize the logger provided the command-line arguments.
+        """
+        level = log.convert_verbosity_to_logging_level(args.verbosity)
+        log_file_level = None if args.log_level is None else \
+            log.convert_verbosity_to_logging_level(args.log_level)
+        if args.log_file == 'default':
+            _log_file = cls.default_log_file()
+        elif args.log_file in ['None', None]:
+            _log_file = None
+        else:
+            _log_file = args.log_file
+        log.init(level=level, log_file=_log_file, log_file_level=log_file_level)
 
-#    @classmethod
-#    def default_log_file(cls):
-#        """
-#        Set the default name for the log file.
-#        """
-#        # Create a UT timestamp (to the minute) for the log filename
-#        timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d-%H%M")
-#        return f'{cls.name()}_{timestamp}.log'
+    @classmethod
+    def default_log_file(cls):
+        """
+        Set the default name for the log file.
+        """
+        # Create a UT timestamp (to the minute) for the log filename
+        timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d-%H%M")
+        return f'{cls.name()}_{timestamp}.log'
 
     @staticmethod
     def expandpath(path_pattern):
@@ -266,6 +266,3 @@ class ScriptBase:
         p = Path(path_pattern).expanduser()
         parts = p.parts[p.is_absolute():]
         return Path(p.root).glob(str(Path(*parts)))
-
-
-

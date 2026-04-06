@@ -13,6 +13,8 @@ try:
 except:
     pyfftw = None
 
+from nirvana import log
+
 from ..models.geometry import projected_polar
 from ..models.asymmetry import asymmetry
 from ..models.axisym import AxisymmetricDisk, axisym_iter_fit
@@ -171,7 +173,7 @@ class FitArgs:
                 fit = axisym_iter_fit(galmeta, self)[0]
                 model = fit.model()[0]
             except Exception as e: 
-                print(e)
+                log.info(e)
                 warnings.warn('Iterative fit failed, using noniterative fit instead')
 
         if fit is None:
@@ -266,7 +268,7 @@ class FitArgs:
                 fit = axisym_iter_fit(galmeta, self)[0]
                 avel, asig = fit.model()
             except Exception as e: 
-                print(e)
+                log.info(e)
                 warnings.warn('Iterative fit failed, using noniterative fit instead')
 
         #failsafe simpler fit
@@ -360,11 +362,11 @@ class FitArgs:
             nmaskedold = nmasked
             nmasked = np.sum(clipmask)
             niter += 1
-            if verbose: print(f'Performed {niter} clipping iterations...')
+            if verbose: log.info(f'Performed {niter} clipping iterations...')
 
             #break if too many iterations
             if niter > maxiter: 
-                if verbose: print(f'Reached maximum clipping iterations: {niter}')
+                if verbose: log.info(f'Reached maximum clipping iterations: {niter}')
                 break
 
             #break if too much data has been clipped
@@ -380,11 +382,11 @@ class FitArgs:
 
         #make a plot of all of the masks if desired
         if verbose: 
-            print(f'{round(maskfrac * 100, 1)}% of data clipped')
+            log.info(f'{round(maskfrac * 100, 1)}% of data clipped')
             if sigma:
                 masks += [residmask, chisqmask]
                 labels += ['resid', 'chisq']
-                print(f'Clipping converged after {niter} iterations')
+                log.info(f'Clipping converged after {niter} iterations')
 
             plt.figure(figsize = (12,12))
             plt.subplot(331)

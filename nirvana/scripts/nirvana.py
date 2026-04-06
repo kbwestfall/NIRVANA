@@ -9,6 +9,7 @@ import os
 from glob import glob
 import numpy as np
 
+from nirvana import log
 from nirvana.models.bisym import fit
 from nirvana.util.fits_prep import fileprep, imagefits
 from nirvana.data.manga import MaNGAGlobalPar
@@ -151,7 +152,7 @@ class Nirvana(scriptbase.ScriptBase):
             drpall_file = glob(args.drpall_dir + '/drpall*.fits')[0]
             galmeta = MaNGAGlobalPar(plate, ifu, drpall_file=drpall_file)
         except Exception as e: 
-            print(e)
+            log.warning(f'Error raised when getting global metadata: {e}')
             galmeta = None
 
         if args.stellar:
@@ -197,7 +198,7 @@ class Nirvana(scriptbase.ScriptBase):
         else:
             fitsname = args.dir + args.outfile
 
-        print('File name:', args.outfile)
+        log.info('File name:', args.outfile)
 
         fname = args.dir + args.outfile + '.nirv'
         galname = args.dir + args.outfile + '.gal'
@@ -214,7 +215,7 @@ class Nirvana(scriptbase.ScriptBase):
                     f'Output FITS file already exists. Use --clobber to overwrite it: {fitsname}'
                 )
         if args.fits and os.path.isfile(fname):
-            print(f'Output .nirv file found, converting to FITS: {fname} --> {fitsname}')
+            log.info(f'Output .nirv file found, converting to FITS: {fname} --> {fitsname}')
             gal = np.load(galname, allow_pickle=True)
             imagefits(fname, galmeta, gal, outfile=fitsname, remotedir=args.remote) 
             os.remove(fname)

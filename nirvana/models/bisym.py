@@ -19,15 +19,14 @@ except:
 
 import dynesty
 
+from nirvana import log
 from .geometry import projected_polar, deriv_projected_polar
 from .beam import ConvolveFFTW, smear, deriv_smear
 from ..data.manga import MaNGAGasKinematics, MaNGAStellarKinematics
 from ..data.util import trim_shape, unpack, cinv
 from ..data.fitargs import FitArgs
 from ..models.higher_order import bisym_model
-
 from . import oned
-
 from .thindisk import ThinDisk
 
 #warnings.simplefilter('ignore', RuntimeWarning)
@@ -499,7 +498,7 @@ def fit(plate, ifu, galmeta = None, daptype='HYB10-MILESHC-MASTARHC2', dr='MPL-1
     if disp: ndim += nbin + args.fixcent
     if scatter: ndim += 2
     args.setnbins(nbin)
-    print(f'{nbin + args.fixcent} radial bins, {ndim} parameters')
+    log.info(f'{nbin + args.fixcent} radial bins, {ndim} parameters')
     
     #prior bounds and asymmetry defined based off of guess
     if galmeta is not None: 
@@ -1028,89 +1027,87 @@ class BisymmetricDisk(ThinDisk):
         Report the current parameters of the model.
         """
         if self.par is None:
-            print('No parameters to report.')
+            log.info('No parameters to report.')
             return
 
         vfom, sfom = self._get_fom()(self.par, sep=True)
         parn = self.par_names()
         max_parn_len = max([len(n) for n in parn])+4
 
-        print('-'*70)
-        print(f'{"Fit Result":^70}')
-        print('-'*70)
+        log.info('-'*70)
+        log.info(f'{"Fit Result":^70}')
+        log.info('-'*70)
         if fit_message is not None:
-            print(f'Fit status message: {fit_message}')
+            log.info(f'Fit status message: {fit_message}')
         if self.fit_status is not None:
-            print(f'Fit status: {self.fit_status}')
-        print(f'Fit success: {str(self.fit_success)}')
-        print('-'*10)
-        print(f'Base parameters:')
+            log.info(f'Fit status: {self.fit_status}')
+        log.info(f'Fit success: {str(self.fit_success)}')
+        log.info('-'*10)
+        log.info(f'Base parameters:')
         slc = self._base_slice()
         ps = 0 if slc.start is None else slc.start
         pe = slc.stop
         for i in range(ps,pe):
-            print(('{0:>'+f'{max_parn_len}'+'}'+ f': {self.par[i]:.1f}').format(parn[i])
+            log.info(('{0:>'+f'{max_parn_len}'+'}'+ f': {self.par[i]:.1f}').format(parn[i])
                     + (f'' if self.par_err is None else f' +/- {self.par_err[i]:.1f}'))
         # Bisymmetry angle
-        print(('{0:>'+f'{max_parn_len}'+'}'+ f': {self.par[pe]:.1f}').format(parn[pe])
+        log.info(('{0:>'+f'{max_parn_len}'+'}'+ f': {self.par[pe]:.1f}').format(parn[pe])
                 + (f'' if self.par_err is None else f' +/- {self.par_err[pe]:.1f}'))
-        print('-'*10)
+        log.info('-'*10)
 
-        print(f'First-order tangential speed parameters:')
+        log.info(f'First-order tangential speed parameters:')
         slc = self._vt_slice()
         ps = slc.start
         pe = slc.stop
         for i in range(ps,pe):
-            print(('{0:>'+f'{max_parn_len}'+'}'+ f': {self.par[i]:.1f}').format(parn[i])
+            log.info(('{0:>'+f'{max_parn_len}'+'}'+ f': {self.par[i]:.1f}').format(parn[i])
                     + (f'' if self.par_err is None else f' +/- {self.par_err[i]:.1f}'))
 
-        print(f'Second-order tangential speed parameters:')
+        log.info(f'Second-order tangential speed parameters:')
         slc = self._v2t_slice()
         ps = slc.start
         pe = slc.stop
         for i in range(ps,pe):
-            print(('{0:>'+f'{max_parn_len}'+'}'+ f': {self.par[i]:.1f}').format(parn[i])
+            log.info(('{0:>'+f'{max_parn_len}'+'}'+ f': {self.par[i]:.1f}').format(parn[i])
                     + (f'' if self.par_err is None else f' +/- {self.par_err[i]:.1f}'))
 
-        print(f'Second-order radial speed parameters:')
+        log.info(f'Second-order radial speed parameters:')
         slc = self._v2r_slice()
         ps = slc.start
         pe = slc.stop
         for i in range(ps,pe):
-            print(('{0:>'+f'{max_parn_len}'+'}'+ f': {self.par[i]:.1f}').format(parn[i])
+            log.info(('{0:>'+f'{max_parn_len}'+'}'+ f': {self.par[i]:.1f}').format(parn[i])
                     + (f'' if self.par_err is None else f' +/- {self.par_err[i]:.1f}'))
 
         if self.dc is None:
-            print('-'*10)
+            log.info('-'*10)
             if self.scatter is not None:
-                print(f'Intrinsic Velocity Scatter: {self.scatter[0]:.1f}')
+                log.info(f'Intrinsic Velocity Scatter: {self.scatter[0]:.1f}')
             vchisqr = np.sum(vfom**2)
-            print(f'Velocity measurements: {len(vfom)}')
-            print(f'Velocity chi-square: {vchisqr}')
-            print(f'Reduced chi-square: {vchisqr/(len(vfom)-self.nfree)}')
-            print('-'*70)
+            log.info(f'Velocity measurements: {len(vfom)}')
+            log.info(f'Velocity chi-square: {vchisqr}')
+            log.info(f'Reduced chi-square: {vchisqr/(len(vfom)-self.nfree)}')
+            log.info('-'*70)
             return
 
-        print('-'*10)
-        print(f'Dispersion profile parameters:')
+        log.info('-'*10)
+        log.info(f'Dispersion profile parameters:')
         slc = self._dc_slice()
         ps = slc.start
         pe = slc.stop
         for i in range(ps,pe):
-            print(('{0:>'+f'{max_parn_len}'+'}'+ f': {self.par[i]:.1f}').format(parn[i])
+            log.info(('{0:>'+f'{max_parn_len}'+'}'+ f': {self.par[i]:.1f}').format(parn[i])
                     + (f'' if self.par_err is None else f' +/- {self.par_err[i]:.1f}'))
-        print('-'*10)
+        log.info('-'*10)
         if self.scatter is not None:
-            print(f'Intrinsic Velocity Scatter: {self.scatter[0]:.1f}')
+            log.info(f'Intrinsic Velocity Scatter: {self.scatter[0]:.1f}')
         vchisqr = np.sum(vfom**2)
-        print(f'Velocity measurements: {len(vfom)}')
-        print(f'Velocity chi-square: {vchisqr}')
+        log.info(f'Velocity measurements: {len(vfom)}')
+        log.info(f'Velocity chi-square: {vchisqr}')
         if self.scatter is not None:
-            print(f'Intrinsic Dispersion**2 Scatter: {self.scatter[1]:.1f}')
+            log.info(f'Intrinsic Dispersion**2 Scatter: {self.scatter[1]:.1f}')
         schisqr = np.sum(sfom**2)
-        print(f'Dispersion measurements: {len(sfom)}')
-        print(f'Dispersion chi-square: {schisqr}')
-        print(f'Reduced chi-square: {(vchisqr + schisqr)/(len(vfom) + len(sfom) - self.nfree)}')
-        print('-'*70)
-
-
+        log.info(f'Dispersion measurements: {len(sfom)}')
+        log.info(f'Dispersion chi-square: {schisqr}')
+        log.info(f'Reduced chi-square: {(vchisqr + schisqr)/(len(vfom) + len(sfom) - self.nfree)}')
+        log.info('-'*70)

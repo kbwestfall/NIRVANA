@@ -11,6 +11,7 @@ from matplotlib import pyplot
 import numpy as np
 from scipy import sparse, linalg, stats, special, ndimage, spatial
 
+from nirvana import log
 from ..models import geometry
 
 
@@ -233,7 +234,7 @@ def is_positive_definite(mat, quiet=True, quick=True):
             cho = linalg.cholesky(_mat)
         except linalg.LinAlgError as e:
             if not quiet:
-                print(str(e))
+                log.info(str(e))
             return False
         else:
             return True
@@ -244,9 +245,9 @@ def is_positive_definite(mat, quiet=True, quick=True):
     if not quiet:
         if np.any(notpos):
             warnings.warn(f'{np.sum(notpos)} eigenvalues are not positive!')
-            print('{0:>6} {1:>8}'.format('Index', 'EigenVal'))
+            log.info('{0:>6} {1:>8}'.format('Index', 'EigenVal'))
             for i in np.where(notpos)[0]:
-                print('{0:>6} {1:8.2e}'.format(i, w[i]))
+                log.info('{0:>6} {1:8.2e}'.format(i, w[i]))
     return not np.any(notpos)
 
 
