@@ -208,7 +208,7 @@ class ScriptBase:
             return parser
         # Add the logging options
         parser.add_argument(
-            '-v', '--verbosity', type=int, default=2,
+            '-v', '--verbosity', type=int, default=1,
             help='Verbosity level, which must be 0, 1, or 2.  Level 0 includes warning and error '
                  'messages, level 1 adds informational messages, and level 2 adds debugging '
                  'messages and the calling sequence.'

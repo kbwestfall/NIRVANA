@@ -24,8 +24,7 @@ class MaNGAAsymDrift(scriptbase.ScriptBase):
     @classmethod
     def get_parser(cls, width=None):
         parser = super().get_parser(
-            description='Fit MaNGA kinematic data to measure asymmetric drift', width=width,
-            default_log_file=True
+            description='Fit MaNGA kinematic data to measure asymmetric drift', width=width
         )
 
         parser.add_argument('plate', type=int, help='MaNGA plate identifier (e.g., 8138)')
@@ -261,6 +260,9 @@ class MaNGAAsymDrift(scriptbase.ScriptBase):
 
     @classmethod
     def main(cls, args):
+
+        # Initialize the log
+        cls.init_log(args)
 
         # Running the script behind a screen, so switch the matplotlib backend
         if args.screen:

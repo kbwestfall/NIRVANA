@@ -26,7 +26,7 @@ class Nirvana(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        parser = super().get_parser(description='Run NIRVANA', width=width, default_log_file=True)
+        parser = super().get_parser(description='Run NIRVANA', width=width)
 
         parser.add_argument(
             'plateifu', nargs=2, type=int, help='MaNGA plate and ifu identifiers'
@@ -135,6 +135,9 @@ class Nirvana(scriptbase.ScriptBase):
     
     @classmethod
     def main(cls, args):
+
+        # Initialize the log
+        cls.init_log(args)
 
         #set save directory
         if args.dir == '':

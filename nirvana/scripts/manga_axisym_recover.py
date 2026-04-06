@@ -74,7 +74,7 @@ class MaNGAAxisymRecover(scriptbase.ScriptBase):
     def get_parser(cls, width=None):
         parser = super().get_parser(
             description='Perform recovery simulations for asymmetric fits for MaNGA data',
-            width=width, default_log_file=True
+            width=width
         )
 
         parser.add_argument('ofile', type=str, help='Name for output file')
@@ -192,6 +192,9 @@ class MaNGAAxisymRecover(scriptbase.ScriptBase):
 
     @classmethod
     def main(cls, args):
+
+        # Initialize the log
+        cls.init_log(args)
 
         # Running the script behind a screen, so switch the matplotlib backend
         if args.screen:

@@ -459,6 +459,8 @@ def fit(plate, ifu, galmeta = None, daptype='HYB10-MILESHC-MASTARHC2', dr='MPL-1
     theta0 = args.getguess(galmeta=galmeta)
     ndim = len(theta0)
 
+    # TODO: goodvel is not defined!!
+
     #clip and invert covariance matrices
     if args.kin.vel_covar is not None and covar: 
         #goodvelcovar = args.kin.vel_covar[np.ix_(goodvel, goodvel)]
