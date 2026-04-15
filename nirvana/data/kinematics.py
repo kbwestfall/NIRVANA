@@ -1816,16 +1816,23 @@ class Kinematics:
                 = bin_stats(vrot_r, vrot, binr, binw, wgts=vrot_wgt, fill_value=0.0) 
         _, _, _, _, _, _, _, vrad_ewmean, vrad_ewsdev, _, vrad_ntot, vrad_nbin, vrad_bin_gpm \
                 = bin_stats(vrad_r, vrad, binr, binw, wgts=vrad_wgt, fill_value=0.0) 
+
         if vel_mod is None:
             vrotm_ewmean = vrotm_ewsdev = None
             vradm_ewmean = vradm_ewsdev = None
         else:
-            _, _, _, _, _, _, _, vrotm_ewmean, vrotm_ewsdev, _, _, _, _ \
-                    = bin_stats(vrot_r[vrot_bin_gpm], vrot_mod[vrot_bin_gpm], binr, binw,
-                                wgts=vrot_wgt[vrot_bin_gpm], fill_value=0.0)
-            _, _, _, _, _, _, _, vradm_ewmean, vradm_ewsdev, _, _, _, _ \
-                    = bin_stats(vrad_r[vrad_bin_gpm], vrad_mod[vrad_bin_gpm], binr, binw,
-                                wgts=vrad_wgt[vrad_bin_gpm], fill_value=0.0) 
+#            _, _, _, _, _, _, _, vrotm_ewmean, vrotm_ewsdev, _, _, _, _ \
+#                    = bin_stats(vrot_r[vrot_bin_gpm], vrot_mod[vrot_bin_gpm], binr, binw,
+#                                wgts=vrot_wgt[vrot_bin_gpm], fill_value=0.0)
+#            _, _, _, _, _, _, _, vradm_ewmean, vradm_ewsdev, _, _, _, _ \
+#                    = bin_stats(vrad_r[vrad_bin_gpm], vrad_mod[vrad_bin_gpm], binr, binw,
+#                                wgts=vrad_wgt[vrad_bin_gpm], fill_value=0.0) 
+            _, _, _, _, _, _, _, vrotm_ewmean, vrotm_ewsdev, _, _, _, _ = bin_stats(
+                vrot_r, vrot_mod, binr, binw, wgts=vrot_wgt, gpm=vrot_bin_gpm, fill_value=0.0
+            )
+            _, _, _, _, _, _, _, vradm_ewmean, vradm_ewsdev, _, _, _, _ = bin_stats(
+                vrad_r, vrad_mod, binr, binw, wgts=vrad_wgt, gpm=vrad_bin_gpm, fill_value=0.0
+            ) 
 
         if self.sig is None:
             # No dispersion data, so we're done
@@ -1886,15 +1893,25 @@ class Kinematics:
             smajm_ewmean = smajm_ewsdev = None
             sminm_ewmean = sminm_ewsdev = None
         else:
-            _, _, _, _, _, _, _, sprofm_ewmean, sprofm_ewsdev, _, _, _, _ \
-                    = bin_stats(sprof_r[sprof_bin_gpm], sprof_mod[sprof_bin_gpm], binr, binw,
-                                wgts=sprof_wgt[sprof_bin_gpm], fill_value=0.0) 
-            _, _, _, _, _, _, _, smajm_ewmean, smajm_ewsdev, _, _, _, _ \
-                    = bin_stats(smaj_r[smaj_bin_gpm], smaj_mod[smaj_bin_gpm], binr, binw,
-                                wgts=smaj_wgt[smaj_bin_gpm], fill_value=0.0) 
-            _, _, _, _, _, _, _, sminm_ewmean, sminm_ewsdev, _, _, _, _ \
-                    = bin_stats(smin_r[smin_bin_gpm], smin_mod[smin_bin_gpm], binr, binw,
-                                wgts=smin_wgt[smin_bin_gpm], fill_value=0.0) 
+#            _, _, _, _, _, _, _, sprofm_ewmean, sprofm_ewsdev, _, _, _, _ \
+#                    = bin_stats(sprof_r[sprof_bin_gpm], sprof_mod[sprof_bin_gpm], binr, binw,
+#                                wgts=sprof_wgt[sprof_bin_gpm], fill_value=0.0) 
+#            _, _, _, _, _, _, _, smajm_ewmean, smajm_ewsdev, _, _, _, _ \
+#                    = bin_stats(smaj_r[smaj_bin_gpm], smaj_mod[smaj_bin_gpm], binr, binw,
+#                                wgts=smaj_wgt[smaj_bin_gpm], fill_value=0.0) 
+#            _, _, _, _, _, _, _, sminm_ewmean, sminm_ewsdev, _, _, _, _ \
+#                    = bin_stats(smin_r[smin_bin_gpm], smin_mod[smin_bin_gpm], binr, binw,
+#                                wgts=smin_wgt[smin_bin_gpm], fill_value=0.0) 
+
+            _, _, _, _, _, _, _, sprofm_ewmean, sprofm_ewsdev, _, _, _, _ = bin_stats(
+                sprof_r, sprof_mod, binr, binw, wgts=sprof_wgt, gpm=sprof_bin_gpm, fill_value=0.0
+            )
+            _, _, _, _, _, _, _, smajm_ewmean, smajm_ewsdev, _, _, _, _ = bin_stats(
+                smaj_r, smaj_mod, binr, binw, wgts=smaj_wgt, gpm=smaj_bin_gpm, fill_value=0.0
+            )
+            _, _, _, _, _, _, _, sminm_ewmean, sminm_ewsdev, _, _, _, _ = bin_stats(
+                smin_r, smin_mod, binr, binw, wgts=smin_wgt, gpm=smin_bin_gpm, fill_value=0.0
+            )
 
         return binr, vrot_ewmean, vrot_ewsdev, vrot_ntot, vrot_nbin, \
                      vrotm_ewmean, vrotm_ewsdev, \

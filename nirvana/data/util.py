@@ -6,7 +6,6 @@ Provides a random set of utility methods.
 import warnings
 
 from IPython import embed
-
 from matplotlib import pyplot
 import numpy as np
 from scipy import sparse, linalg, stats, special, ndimage, spatial
@@ -458,39 +457,34 @@ def aggregate_stats(x, y, ye=None, wgts=None, gpm=None, eps=None, fill_value=Non
         non-zero weight), and a boolean `numpy.ndarray`_ with flagging the
         data included in the calculation.
     """
-    # Weights
-    _wgts = (np.ones(x.size, dtype=float) if wgts is None else wgts) \
-                if ye is None else construct_ivar_weights(ye, eps=eps)
-    indx = _wgts > 0
-    if gpm is not None:
-        indx &= gpm
+    _wgts, _gpm = _init_weights_mask(None, x.size, ye, wgts, gpm, eps)
 
     # Number of aggregated data points
-    nbin = np.sum(indx)
+    nbin = np.sum(_gpm)
     if nbin == 0:
         # Default values are all set to None
-        return (fill_value,)*9 + (0, indx)
+        return (fill_value,)*9 + (0, _gpm)
 
     # Unweighted statistics
-    uwmed = np.median(y[indx])
-    uwmad = sigma_clip_stdfunc_mad(y[indx])
+    uwmed = np.median(y[_gpm])
+    uwmad = sigma_clip_stdfunc_mad(y[_gpm])
 
-    uwxbin = np.mean(x[indx])
-    uwmean = np.mean(y[indx])
-    uwsdev = np.sqrt(np.dot(y[indx]-uwmean,y[indx]-uwmean)/(nbin-1)) if nbin > 1 else fill_value
+    uwxbin = np.mean(x[_gpm])
+    uwmean = np.mean(y[_gpm])
+    uwsdev = np.sqrt(np.dot(y[_gpm]-uwmean,y[_gpm]-uwmean)/(nbin-1)) if nbin > 1 else fill_value
 
     # Weighted statistics
     # TODO: Include covariance
     #   - Requires lots of error propagation!
-    wsum = np.sum(_wgts[indx])
-    ewxbin = np.dot(_wgts[indx],x[indx])/wsum
-    ewmean = np.dot(_wgts[indx],y[indx])/wsum
-    ewsdev = np.dot(_wgts[indx],y[indx]**2)/wsum - ewmean**2
+    wsum = np.sum(_wgts[_gpm])
+    ewxbin = np.dot(_wgts[_gpm],x[_gpm])/wsum
+    ewmean = np.dot(_wgts[_gpm],y[_gpm])/wsum
+    ewsdev = np.dot(_wgts[_gpm],y[_gpm]**2)/wsum - ewmean**2
     ewsdev = fill_value if ewsdev < 0 or nbin <= 1 else np.sqrt(ewsdev*nbin/(nbin-1))
     # TODO: This assumes the weights provided are errors...
     ewerr = np.sqrt(1./wsum)
 
-    return uwmed, uwmad, uwxbin, uwmean, uwsdev, ewxbin, ewmean, ewsdev, ewerr, nbin, indx
+    return uwmed, uwmad, uwxbin, uwmean, uwsdev, ewxbin, ewmean, ewsdev, ewerr, nbin, _gpm
 
 
 def _select_rej_stat(rej_stat, ewmean, ewsdev, uwmean, uwsdev, uwmed, uwmad):
@@ -540,7 +534,7 @@ def clipped_aggregate_stats(x, y, ye=None, wgts=None, gpm=None, eps=None, fill_v
         sig_rej (:obj:`float`, optional):
             The symmetric rejection threshold in units of the standard
             deviation.  If None, no rejection is performed.
-        use_ew_stats (:obj:`str`, optional):
+        rej_stat (:obj:`str`, optional):
             The statistic to use when determining which values to reject.
             Allowed options are:
 
@@ -567,11 +561,7 @@ def clipped_aggregate_stats(x, y, ye=None, wgts=None, gpm=None, eps=None, fill_v
     # Run the first iteration. The weights and good-pixel mask are defined here
     # so that they don't need to be redetermined for each call to
     # aggregate_stats
-    _wgts = (np.ones(x.size, dtype=float) if wgts is None else wgts) \
-                if ye is None else construct_ivar_weights(ye, eps=eps)
-    _gpm = _wgts > 0
-    if gpm is not None:
-        _gpm &= gpm
+    _wgts, _gpm = _init_weights_mask(None, x.size, ye, wgts, gpm, eps)
 
     # Get the stats
     uwmed, uwmad, uwxbin, uwmean, uwsdev, ewxbin, ewmean, ewsdev, ewerr, nbin, new_gpm \
@@ -585,17 +575,42 @@ def clipped_aggregate_stats(x, y, ye=None, wgts=None, gpm=None, eps=None, fill_v
     _gpm &= new_gpm
     i = 1
     while maxiter is None or i < maxiter:
-        mean, sigma = _select_rej_stat(rej_stat, ewsdev, uwsdev, uwmad)
+        mean, sigma = _select_rej_stat(rej_stat, ewmean, ewsdev, uwmean, uwsdev, uwmed, uwmad)
         rej = (y > mean + sig_rej*sigma) | (y < mean - sig_rej*sigma)
         if not np.any(rej):
-            # Nothing was rejected so we're done
-            return uwmed, uwmad, uwxbin, uwmean, uwsdev, ewxbin, ewmean, ewsdev, ewerr, nbin, _gpm
+            # Nothing was rejected so don't recalculate stats
+            break
         # Include the rejection in the good-pixel mask
         _gpm &= np.logical_not(rej)
         uwmed, uwmad, uwxbin, uwmean, uwsdev, ewxbin, ewmean, ewsdev, ewerr, nbin, new_gpm \
                 = aggregate_stats(x, y, wgts=_wgts, gpm=_gpm, fill_value=fill_value)
         _gpm &= new_gpm
         i += 1
+
+    return uwmed, uwmad, uwxbin, uwmean, uwsdev, ewxbin, ewmean, ewsdev, ewerr, nbin, _gpm
+
+
+def _init_weights_mask(nbins, size, ye, wgts, gpm, eps):
+
+    if ye is None:
+        _wgts = np.ones(size, dtype=float) if wgts is None else wgts
+    else:
+        construct_ivar_weights(ye, eps=eps)
+
+    if nbins is None:
+        _gpm = _wgts > 0
+        if gpm is not None:
+            _gpm &= gpm
+    else:
+        if gpm is None:
+            _gpm = np.tile(_wgts > 0, (nbins,1))
+        else:
+            if gpm.ndim == 2:
+                _gpm = gpm & (_wgts > 0)[None,:]
+            else:
+                _gpm = np.tile(gpm & (_wgts > 0), (nbins,1))
+
+    return _wgts, _gpm
 
 
 def bin_stats(x, y, bin_center, bin_width, ye=None, wgts=None, gpm=None, eps=None, fill_value=None,
@@ -607,74 +622,94 @@ def bin_stats(x, y, bin_center, bin_width, ye=None, wgts=None, gpm=None, eps=Non
     The bin centers and widths must be pre-defined. Bins are allowed to
     overlap.
 
-    Args:
-        x (`numpy.ndarray`_):
-            Independent coordinates
-        y (`numpy.ndarray`_):
-            Dependent coordinates
-        bin_center (`numpy.ndarray`_):
-            The set of independent coordinates for the center of each bin.
-        bin_width (`numpy.ndarray`_):
-            The width of each bin.
-        ye (`numpy.ndarray`_, optional):
-            Errors in the dependent coordinates. Used to construct inverse
-            variance weights. If not provided, no inverse-variance weights
-            are applied.
-        wgts (`numpy.ndarray`_, optional):
-            Weights to apply. Ignored if errors are provided. If None and no
-            errors are provided (``ye``), uniform weights are applied.
-        gpm (`numpy.ndarray`_, optional):
-            Good-pixel mask used to select data to include. If None, all data
-            are included.
-        eps (:obj:`float`, optional):
-            Minimum allowed weight. Any weight below this value is set to 0.
-        fill_value (:obj:`float`, optional):
-            If the statistics cannot be determined, replace the output with
-            this fill value.
-        sig_rej (:obj:`float`, optional):
-            The symmetric rejection threshold in units of the standard
-            deviation.  If None, no rejection is performed.
-        use_ew_stats (:obj:`str`, optional):
-            The statistic to use when determining which values to reject.
-            Allowed options are:
+    Parameters
+    ----------
+    x : `numpy.ndarray`_
+        Independent coordinates
+    y : `numpy.ndarray`_
+        Dependent coordinates
+    bin_center : `numpy.ndarray`_
+        The set of independent coordinates for the center of each bin.
+    bin_width : `numpy.ndarray`_
+        The width of each bin.
+    ye : `numpy.ndarray`_, optional
+        Errors in the dependent coordinates. Used to construct inverse
+        variance weights. If not provided, no inverse-variance weights
+        are applied.
+    wgts : `numpy.ndarray`_, optional
+        Weights to apply. Ignored if errors are provided. If None and no
+        errors are provided (``ye``), uniform weights are applied.
+    gpm : `numpy.ndarray`_, optional
+        Good-pixel mask used to select data to include. If None, all data
+        are included.
+    eps : :obj:`float`, optional
+        Minimum allowed weight. Any weight below this value is set to 0.
+    fill_value : :obj:`float`, optional
+        If the statistics cannot be determined, replace the output with
+        this fill value.
+    sig_rej : :obj:`float`, optional
+        The symmetric rejection threshold in units of the standard
+        deviation.  If None, no rejection is performed.
+    rej_stats : :obj:`str`, optional
+        The statistic to use when determining which values to reject.
+        Allowed options are:
 
-                - 'ew': Use the error-weighted mean and standard deviation
-                - 'uw': Use the unweighted mean and standard deviation
-                - 'ro': Use the robust statisitics, the unweighted median and
-                   median absolute deviation (where the latter is normalized
-                   to nominally match the standard deviation)
+            - 'ew': Use the error-weighted mean and standard deviation
+            - 'uw': Use the unweighted mean and standard deviation
+            - 'ro': Use the robust statisitics, the unweighted median and
+              median absolute deviation (where the latter is normalized
+              to nominally match the standard deviation)
                 
-        maxiter (:obj:`int`, optional):
-            Maximum number of rejection iterations; ``maxiter = 1`` means
-            there are *no* rejection iterations. If None, iterations continue
-            until no more data are rejected.
+    maxiter : :obj:`int`, optional
+        Maximum number of rejection iterations; ``maxiter = 1`` means
+        there are *no* rejection iterations. If None, iterations continue
+        until no more data are rejected.
 
-    Returns:
-        :obj:`tuple`: Thirteen `numpy.ndarray`_ objects are returned: The
-        coordinate of the bin centers (this is just the input ``bin_centers``
-        array), the unweighted median y value, the unweighted median absolute
-        deviation rescaled to match the standard deviation, the unweighted
-        mean x, the unweighted mean y, the unweighted standard deviation of
-        y, the error-weighted mean x, the error-weighted mean y, the
-        error-weighted standard deviation of y, the error-weighted error in
-        the mean y, the total number of data points in the bin (this excludes
-        any data that are masked on input either because ``ye`` or wgt`` is
-        not larger than 0 or ``gpm`` is False), the number of data points
-        used in the aggregated statistics, and a boolean array selecting data
-        that were included in any bin. The shape of all arrays is the same as
-        the input ``bin_centers``, except for the last array which is the
+    Returns
+    -------
+    `numpy.ndarray`_
+        The coordinate of the bin centers (this is just the input
+        ``bin_centers`` array); same shape as the input ``bin_centers``.
+    `numpy.ndarray`_
+        The unweighted median y value; same shape as the input ``bin_centers``.
+    `numpy.ndarray`_
+        The unweighted median absolute deviation rescaled to match the standard
+        deviation; same shape as the input ``bin_centers``.
+    `numpy.ndarray`_
+        The unweighted mean x; same shape as the input ``bin_centers``.
+    `numpy.ndarray`_
+        The unweighted mean y; same shape as the input ``bin_centers``.
+    `numpy.ndarray`_
+        The unweighted standard deviation of y; same shape as the input
+        ``bin_centers``.
+    `numpy.ndarray`_
+        The error-weighted mean x; same shape as the input ``bin_centers``.
+    `numpy.ndarray`_
+        The error-weighted mean y; same shape as the input ``bin_centers``.
+    `numpy.ndarray`_
+        The error-weighted standard deviation of y; same shape as the input
+        ``bin_centers``.
+    `numpy.ndarray`_
+        The error-weighted error in the mean y; same shape as the input
+        ``bin_centers``.
+    `numpy.ndarray`_
+        The total number of data points in the bin (this excludes any data that
+        are masked on input either because ``ye`` or wgt`` is not larger than 0
+        or ``gpm`` is False); same shape as the input ``bin_centers``.
+    `numpy.ndarray`_
+        The number of data points used in the aggregated statistics; same shape
+        as the input ``bin_centers``.
+    `numpy.ndarray`_
+        A boolean array selecting data that were included in any bin;
         same shape as the input ``x``.
     """
+    nbins = bin_center.size
+
     # Setup the weights and good-pixel mask for all of the data here so that
     # they don't need to be redetermined for each call to aggregate_stats.
-    _wgts = (np.ones(x.size, dtype=float) if wgts is None else wgts) \
-                if ye is None else construct_ivar_weights(ye, eps=eps)
-    _gpm = _wgts > 0
-    if gpm is not None:
-        _gpm &= gpm
+    _wgts, _gpm = _init_weights_mask(nbins, x.size, ye, wgts, gpm, eps)
 
     # Setup the output arrays
-    nbins = bin_center.size
     uwxbin = np.zeros(nbins, dtype=float)
     uwmed = np.zeros(nbins, dtype=float)
     uwmad = np.zeros(nbins, dtype=float)
@@ -686,24 +721,28 @@ def bin_stats(x, y, bin_center, bin_width, ye=None, wgts=None, gpm=None, eps=Non
     ewerr = np.zeros(nbins, dtype=float)
     ntot = np.zeros(nbins, dtype=int)
     nbin = np.zeros(nbins, dtype=int)
-    all_bin_gpm = _gpm.copy()
+    bin_gpm = _gpm.copy()
 
     for i in range(nbins):
         binlim = bin_center[i] + np.array([-1.,1.])*bin_width[i]/2.
-        bin_gpm = _gpm & (x > binlim[0]) & (x < binlim[1])
-        ntot[i] = np.sum(bin_gpm)
+        bin_gpm[i] &= (x > binlim[0]) & (x < binlim[1])
+        ntot[i] = np.sum(bin_gpm[i])
         if ntot[i] == 0:
             continue
 
-        uwmed[i], uwmad[i], uwxbin[i], uwmean[i], uwsdev[i], ewxbin[i], ewmean[i], ewsdev[i], \
-            ewerr[i], nbin[i], _bin_gpm \
-                    = clipped_aggregate_stats(x[bin_gpm], y[bin_gpm], wgts=_wgts[bin_gpm],
-                                              fill_value=fill_value, sig_rej=sig_rej,
-                                              rej_stat=rej_stat, maxiter=maxiter)
-        all_bin_gpm[bin_gpm] = _bin_gpm
+        (
+            uwmed[i], uwmad[i],
+            uwxbin[i], uwmean[i], uwsdev[i],
+            ewxbin[i], ewmean[i], ewsdev[i],
+            ewerr[i], nbin[i], _bin_gpm
+        ) = clipped_aggregate_stats(
+            x[bin_gpm[i]], y[bin_gpm[i]], wgts=_wgts[bin_gpm[i]], fill_value=fill_value,
+            sig_rej=sig_rej, rej_stat=rej_stat, maxiter=maxiter
+        )
+        bin_gpm[i,bin_gpm[i]] = _bin_gpm
 
     return bin_center, uwmed, uwmad, uwxbin, uwmean, uwsdev, ewxbin, ewmean, ewsdev, ewerr, \
-             ntot, nbin, all_bin_gpm
+             ntot, nbin, bin_gpm
 
 
 def select_kinematic_axis(r, th, which='major', r_range=None, wedge=30.):

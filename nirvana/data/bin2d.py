@@ -6,8 +6,10 @@ Two-dimensional binning routines.
 """
 import warnings
 
-import numpy as np
+from IPython import embed
 from matplotlib import pyplot
+import numpy as np
+from scipy import sparse
 
 from vorbin.voronoi_2d_binning import voronoi_2d_binning
 from .util import get_map_bin_transformations, fill_matrix
@@ -202,8 +204,18 @@ class Bin2D:
                 self.bin_transform = get_map_bin_transformations(spatial_shape=spatial_shape,
                                                                  binid=binid)
         self.unravel = np.unravel_index(self.grid_indx, self.spatial_shape)
+        self._error_transform = None
 
-    def bin(self, data):
+    @property        
+    def error_transform(self):
+        if self._error_transform is None:
+            i,j,d = sparse.find(self.bin_transform)
+            self._error_transform = sparse.coo_matrix(
+                (d**2,(i,j)), shape=self.bin_transform.shape
+            ).tocsr()
+        return self._error_transform
+
+    def bin(self, data, err=None):
         """
         Provided a set of mapped data, bin it according to the internal bin ID
         map.
@@ -212,21 +224,36 @@ class Bin2D:
         :func:`~nirvana.data.util.get_map_bin_transformations`, this computes
         the average value of the data in each bin.
 
-        Args:
-            data (`numpy.ndarray`_):
-                Data to bin. Shape must match :attr:`spatial_shape`.
+        Parameters
+        ----------
+        data : `numpy.ndarray`_
+            Data to bin. Shape must match :attr:`spatial_shape`.
+        err : `numpy.ndarray`_, optional
+            1-sigma uncertainties in the data to bin.  If None, no errors are
+            calculated.  Shape must match :attr:`spatial_shape`.
 
-        Returns:
-            `numpy.ndarray`_: A vector with the binned data.
+        Returns
+        -------
+        tuple
+            One or two `numpy.ndarray`_ objects.  If no errors are provided this
+            is just the vector with the binned data.  Otherwise, both the binned
+            data and the errors are provided.
 
-        Raises:
-            ValueError:
-                Raised if the shape of the input array is incorrect.
+        Raises
+        ------
+        ValueError
+            Raised if the shape of the input array is incorrect.
         """
         if data.shape != self.spatial_shape:
             raise ValueError('Data to rebin has incorrect shape; expected {0}, found {1}.'.format(
                               self.spatial_shape, data.shape))
-        return self.bin_transform.dot(data.ravel())
+        if err is None:
+            return self.bin_transform.dot(data.ravel())
+
+        return (
+            self.bin_transform.dot(data.ravel()),
+            np.sqrt(self.error_transform.dot(err.ravel()**2))
+        )
 
     def deriv_bin(self, data, deriv):
         """
@@ -284,8 +311,7 @@ class Bin2D:
         """
         return self.bin_transform.dot(covar.dot(self.bin_transform.T))
 
-    # TODO: Include error calculations?
-    def bin_moments(self, norm, center, stddev):
+    def bin_moments(self, norm, center, stddev, norm_err=None, center_err=None, stddev_err=None):
         r"""
         Bin a set of Gaussian moments.
 
@@ -295,24 +321,39 @@ class Bin2D:
 
         .. note::
 
-            Any of the input arguments can be None, but at least one of them
-            cannot be!
+            Any of the positional arguments can be None, but at least one of
+            them cannot be!
 
-        Args:
-            norm (`numpy.ndarray`_):
-                Gaussian normalization.  Shape must match :attr:`spatial_shape`.
-                Can be None.
-            center (`numpy.ndarray`_):
-                Gaussian center.  Shape must match :attr:`spatial_shape`.  Can
-                be None.
-            stddev (`numpy.ndarray`_, optional):
-                Gaussian standard deviation.  Shape must match
-                :attr:`spatial_shape`.  Can be None.
+        Parameters
+        ----------
+        norm : `numpy.ndarray`_
+            Gaussian normalization.  Shape must match :attr:`spatial_shape`.
+            Can be None.
+        center : `numpy.ndarray`_
+            Gaussian center.  Shape must match :attr:`spatial_shape`.  Can
+            be None.
+        stddev : `numpy.ndarray`_
+            Gaussian standard deviation.  Shape must match
+            :attr:`spatial_shape`.  Can be None.
+        norm_err : `numpy.ndarray`_, optional
+            1-sigma uncertainties in the normalization.  Ignored if ``norm`` is
+            None.
+        center_err : `numpy.ndarray`_, optional
+            1-sigma uncertainties in the center.  Ignored if ``center`` is
+            None.
+        stddev_err : `numpy.ndarray`_, optional
+            1-sigma uncertainties in the standard deviation.  Ignored if
+            ``stddev`` is None.
 
-        Returns:
-            :obj:`tuple`: A tuple of three `numpy.ndarray`_ objects with the
-            binned normalization, mean, and standard deviation of the summed
-            profile.  If ``norm`` is None on input, the returned 0th moment is 1
+        Returns
+        -------
+        tuple
+            The number of output `numpy.ndarray`_ objects depends on the input.
+            If *any* errors are provided, there are 3 pairs output objects,
+            where each pair is the moment value and its error.  If errors are
+            not provided, only 3 objects are returned, providing the binned
+            normalization, mean, and standard deviation of the summed profile.
+            If ``norm`` is None on input, the returned 0th moment is 1
             everywhere.  If ``center`` is None on input, the returned 1st moment
             is 0 everywhere.  If ``stddev`` is None on input, the returned 2nd
             moment is 1 everywhere.
@@ -322,19 +363,79 @@ class Bin2D:
         shape = [x.shape for x in [norm, center, stddev] if x is not None][0]
         if not all([x is None or x.shape == shape for x in [norm, center, stddev]]):
             raise ValueError('Shape of all input arrays must match.')
+
+        # Zeroth moment
         _norm = np.ones(shape, dtype=float) if norm is None else norm
-        mom0 = self.bin(_norm)
+        if norm_err is None:
+            mom0 = self.bin(_norm)
+            mom0_err = None
+        else:
+            mom0, mom0_err = self.bin(_norm, err=norm_err)
         if center is None and stddev is None:
-            return mom0, None, None
+            return (
+                (mom0, None, None) if norm_err is None
+                else (mom0, mom0_err, None, None, None, None)
+            )
+
+        # First moment
         inv_mom0 = 1/(mom0 + (mom0 == 0.))
+        inv_mom0_err = None if mom0_err is None else inv_mom0 / (mom0 + (mom0 == 0.)) * mom0_err
         _center = np.zeros(shape, dtype=float) if center is None else center
-        mom1 = self.bin(_norm*_center) * inv_mom0
+        arg = _norm*_center
+        if norm_err is None and center_err is None:
+            mom1 = self.bin(arg) * inv_mom0
+            mom1_err = None
+        else:
+            arg_err = 0.
+            if norm_err is not None:
+                arg_err = (norm_err*_center)**2
+            if center_err is not None:
+                arg_err += (_norm*center_err)**2
+            mom1, mom1_err = self.bin(arg, err=np.sqrt(arg_err))
+            if inv_mom0_err is None:
+                mom1_err *= inv_mom0
+            else:
+                mom1_err = np.sqrt((mom1 * inv_mom0_err)**2 + (mom1_err * inv_mom0)**2)
+            mom1 *= inv_mom0
         if stddev is None:
-            return mom0, mom1, None
-        _var = _center**2 + stddev**2
-        mom2 = self.bin(_norm*_var) * inv_mom0 - mom1**2
-        mom2[mom2 < 0] = 0.
-        return mom0, mom1, np.sqrt(mom2)
+            return (
+                (mom0, mom1, None) if norm_err is None and center_err is None
+                else (mom0, mom0_err, mom1, mom1_err, None, None)
+            )
+
+        # Second moment
+        arg = _norm*(_center**2 + stddev**2)
+        if norm_err is None and center_err is None and stddev_err is None:
+            mom2 = self.bin(arg) * inv_mom0 - mom1**2
+            mom2[mom2 < 0] = 0.
+            mom2 = np.sqrt(mom2)
+            mom2_err = None
+        else:
+            arg_err = 0.
+            if norm_err is not None:
+                arg_err = (arg * norm_err / _norm)**2
+            if center_err is not None:
+                arg_err += (2 * _norm * _center * center_err)**2
+            if stddev_err is not None:
+                arg_err += (2 * _norm * stddev * stddev_err)**2
+            mom2, mom2_err = self.bin(arg, err=np.sqrt(arg_err))
+            mom2_err = (mom2_err * inv_mom0)**2
+            if inv_mom0_err is not None:
+                mom2_err += (mom2 * inv_mom0_err)**2
+            if mom1_err is not None:
+                mom2_err += (2 * mom1 * mom1_err)**2
+            # This gets us sigma^2
+            mom2 = mom2 * inv_mom0 - mom1**2
+            mom2_err = np.sqrt(mom2_err)
+            # Now convert to sigma
+            mom2[mom2 < 0] = 0.
+            mom2 = np.sqrt(mom2)
+            mom2_err /= 2 * (mom2 + (mom2 == 0.))
+
+        return (
+            (mom0, mom1, mom2) if norm_err is None and center_err is None and stddev_err is None
+            else (mom0, mom0_err, mom1, mom1_err, mom2, mom2_err)
+        )
 
     def deriv_bin_moments(self, norm, center, stddev, dnorm, dcenter, dstddev):
         r"""
